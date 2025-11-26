@@ -1,0 +1,136 @@
+# HATS Trading System - Agent Dependencies
+# Phase 1: Infrastructure & Data Collection
+
+# ============================================
+# Core LangChain & LangGraph (Orchestration)
+# ============================================
+langgraph==0.2.55
+langchain==0.3.13
+langchain-core==0.3.27  # align with langchain / langchain-openai dependency specs
+langchain-openai==0.2.14
+langchain-community==0.3.13
+langsmith==0.2.7
+
+# ============================================
+# Backtesting & Trading
+# ============================================
+# lumibot==3.6.1  # optional; numpy<2 constraint not compatible with Python 3.13
+ccxt==4.4.50
+# pandas-ta==0.4.67b0  # optional; requires pandas>=2.3.2 not available on py3.13  # loosened for pandas compatibility on py3.13  # 0.3.x not available on Python 3.13
+backtrader==1.9.78.123  # Alternative/comparison
+
+# ============================================
+# Database Drivers
+# ============================================
+# PostgreSQL + TimescaleDB
+psycopg2-binary==2.9.10
+sqlalchemy==2.0.36
+asyncpg==0.30.0
+
+# MongoDB
+pymongo==4.9.2  # motor 3.6.0 requires <4.10
+motor==3.6.0  # Async MongoDB
+
+# Redis (for caching)
+redis==5.2.1
+hiredis==3.0.0  # Performance boost
+
+# ============================================
+# Semantic Caching
+# ============================================
+gptcache==0.1.44
+# langchain-redis==0.2.5  # optional; requires langchain-core>=1.x incompatible with current stack  # 0.1.5 unavailable; 0.2.x supports current langchain
+
+# ============================================
+# LLM Providers
+# ============================================
+openai==1.59.6
+anthropic==0.42.0
+# For FinGPT (HuggingFace)
+transformers==4.48.1
+torch==2.9.1  # 2.5.1 wheel not available for Python 3.13; 2.9.1 provides cp313 builds
+accelerate==1.2.1
+sentence-transformers==3.3.1
+
+# ============================================
+# Guardrails AI (Safety & Validation)
+# ============================================
+guardrails-ai==0.5.14
+pydantic==2.10.5
+pydantic-settings==2.7.0
+
+# ============================================
+# Visualization & Dimensionality Reduction
+# ============================================
+# For Landscape of Thoughts
+umap-learn==0.5.7
+scikit-learn==1.6.1
+plotly==5.24.1
+matplotlib==3.10.0
+seaborn==0.13.2
+
+# Streamlit Dashboard
+streamlit==1.41.1
+streamlit-aggrid==1.0.5
+streamlit-plotly-events==0.0.6
+
+# ============================================
+# Data Processing
+# ============================================
+pandas==2.2.3
+numpy==2.2.6  # align with pandas-ta >=2.2.6 requirement
+scipy==1.15.1
+
+# ============================================
+# API & Web Framework
+# ============================================
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+websockets==14.1
+aiohttp==3.10.11  # aligns with ccxt upper bound
+requests==2.32.3
+python-dotenv==1.0.1
+
+# ============================================
+# Testing
+# ============================================
+pytest==8.3.4
+pytest-asyncio==0.25.2
+pytest-cov==6.0.0
+httpx==0.28.1  # For FastAPI testing
+
+# ============================================
+# Utilities
+# ============================================
+python-dateutil==2.9.0.post0
+pytz==2024.2
+tqdm==4.67.1
+rich==13.9.4  # Beautiful CLI output
+
+# ============================================
+# Code Quality
+# ============================================
+black==24.10.0
+flake8==7.1.1
+mypy==1.14.1
+isort==5.13.2
+
+# ============================================
+# Logging & Monitoring
+# ============================================
+loguru==0.7.3
+prometheus-client==0.21.1
+
+# ============================================
+# Optional: Financial Data Sources
+# ============================================
+yfinance==0.2.51
+python-binance==1.0.22
+# alpaca-py==0.36.0  # optional; broker SDK; 0.36.4 wheel unavailable on Python 3.13
+
+# ============================================
+# Optional: Advanced NLP
+# ============================================
+# For sentiment analysis enhancements
+vaderSentiment==3.3.2
+textblob==0.18.0.post0

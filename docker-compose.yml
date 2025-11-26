@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with TimescaleDB extension
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: hats_postgres
+    environment:
+      POSTGRES_USER: hats_user
+      POSTGRES_PASSWORD: hats_password
+      POSTGRES_DB: hats_trading
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/db/init_postgres.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - hats_network
+    restart: unless-stopped
+
+  # MongoDB for unstructured data (reasoning logs, news)
+  mongodb:
+    image: mongo:7.0
+    container_name: hats_mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: hats_user
+      MONGO_INITDB_ROOT_PASSWORD: hats_password
+      MONGO_INITDB_DATABASE: hats_trading
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./backend/db/init_mongodb.js:/docker-entrypoint-initdb.d/init.js
+    networks:
+      - hats_network
+    restart: unless-stopped
+
+  # Redis for semantic caching
+  redis:
+    image: redis:7-alpine
+    container_name: hats_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - hats_network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # Adminer for database management (optional)
+  adminer:
+    image: adminer:latest
+    container_name: hats_adminer
+    ports:
+      - "8080:8080"
+    networks:
+      - hats_network
+    restart: unless-stopped
+    depends_on:
+      - postgres
+
+  # Mongo Express for MongoDB management (optional)
+  mongo-express:
+    image: mongo-express:latest
+    container_name: hats_mongo_express
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: hats_user
+      ME_CONFIG_MONGODB_ADMINPASSWORD: hats_password
+      ME_CONFIG_MONGODB_URL: mongodb://hats_user:hats_password@mongodb:27017/
+      ME_CONFIG_BASICAUTH: false
+    ports:
+      - "8081:8081"
+    networks:
+      - hats_network
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  hats_network:
+    driver: bridge

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(example-skills:frontend-design)",
+      "WebSearch",
+      "WebFetch(domain:lumibot.lumiwealth.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:dev.to)",
+      "WebFetch(domain:www.swarnendu.de)",
+      "WebFetch(domain:www.guardrailsai.com)",
+      "WebFetch(domain:guardrailsai.com)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

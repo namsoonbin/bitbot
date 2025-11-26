@@ -1,0 +1,109 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Machine Learning Models
+*.h5
+*.pkl
+*.pth
+*.onnx
+trained_models/
+checkpoints/
+
+# Data files (large datasets)
+*.csv
+*.parquet
+*.feather
+data/raw/
+data/processed/
+
+# Docker volumes (data persisted outside containers)
+docker_volumes/
+
+# Temporary files
+*.tmp
+*.bak
+*.cache
+tmp/
+temp/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# TensorBoard
+tensorboard_logs/
+tensorboard_ppo/
+
+# LangSmith traces (optional, can be large)
+langsmith_traces/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Node modules (if using Next.js frontend)
+node_modules/
+.next/
+out/
+
+# Package manager
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Keep these files
+!.env.example
+!README.md
+!requirements*.txt
