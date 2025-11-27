@@ -29,6 +29,9 @@ from pymongo import MongoClient
 # Technical Analysis
 from .technical_analyst import calculate_technical_indicators
 
+# Sentiment Analysis
+from .sentiment_analyst import analyze_news_sentiment
+
 
 # ============================================
 # Helpers
@@ -288,12 +291,17 @@ def analyst_node(state: AgentState) -> AgentState:
                    f"Trend={technical_indicators['trend']}, "
                    f"Momentum={technical_indicators['momentum']}")
 
-        # Calculate sentiment
-        if news_data:
-            sentiment_scores = [item.get('sentiment', {}).get('score', 0) for item in news_data]
-            avg_sentiment = sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0.0
-            state['sentiment_score'] = avg_sentiment
-            logger.info(f"Average news sentiment: {avg_sentiment:.3f}")
+        # Analyze sentiment using Gemini 2.5 Pro
+        logger.info("Analyzing news sentiment with Gemini 2.5 Pro...")
+        sentiment_result = analyze_news_sentiment(
+            news_data,
+            symbol=state['market_data'].get('symbol', 'BTC/USDT')
+        )
+        state['sentiment_score'] = sentiment_result['average_score']
+        state['sentiment_analysis'] = sentiment_result['summary']
+        state['news_sentiment'] = sentiment_result
+        logger.info(f"Sentiment: {sentiment_result['overall_label']} "
+                   f"(Score: {sentiment_result['average_score']:.3f})")
 
         # Build summaries
         news_summary = _build_news_summary(news_data)

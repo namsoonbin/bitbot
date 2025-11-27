@@ -432,15 +432,34 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 - ❌ `TA-Lib`: C 기반, Windows 설치 복잡 (30분+)
 - 성능 차이: 무시 가능 (0.04초 vs 0.01초)
 
-#### 3.4 Sentiment Analyst (FinGPT)
-- [ ] **FinGPT 모델 통합**
-  - [ ] 모델 다운로드 및 설정
-  - [ ] GPU 메모리 최적화
+#### 3.4 Sentiment Analyst 구현 ✅ 완료 (2025-11-27)
+- [x] **옵션 2: Gemini 2.5 Pro Financial CoT** (현재 구현)
+  - [x] `backend/agents/sentiment_analyst.py` 생성 (370+ lines)
+  - [x] Financial Chain-of-Thought 프롬프트 설계
+  - [x] 뉴스별 감성 분석 (sentiment score: -1.0 ~ 1.0)
+  - [x] Sentiment label 분류 (Very Negative ~ Very Positive)
+  - [x] Market impact 분석 (Bearish/Neutral/Bullish)
+  - [x] 배치 처리 (뉴스 최대 10개)
+  - [x] analyst_node 통합
+  - [x] Fallback 로직 (API 실패 시 neutral 반환)
+  - [x] 테스트 및 검증 (구조 테스트 완료)
+  - [x] 전체 그래프 컴파일 성공 (8 nodes)
+- [ ] **옵션 1: FinGPT 로컬 모델 마이그레이션** (Phase 4 이후 계획)
+  - [ ] FinGPT-v3 모델 다운로드 (HuggingFace)
+  - [ ] GPU 메모리 최적화 (4-8GB VRAM)
+  - [ ] Quantization 적용 (INT8/FP16)
   - [ ] 추론 파이프라인 구축
-- [ ] **대안: GPT-4 Financial CoT**
-  - [ ] Financial Chain-of-Thought 프롬프트
-  - [ ] 뉴스 감성 분석
-  - [ ] 시장 심리 점수화 (-1.0 ~ 1.0)
+  - [ ] 성능 벤치마크 (Gemini vs FinGPT)
+  - [ ] 비용 분석 (API vs GPU 전기료)
+
+**선택 이유:**
+- 옵션 2: 빠른 구현 (10분), 이미 사용 중인 Gemini 인프라 활용
+- 옵션 1: 금융 도메인 특화, API 비용 절감 (나중에 진행)
+
+**현재 모델:**
+- **Gemini 2.5 Pro** (고급 추론, Financial CoT에 최적)
+- Temperature: 0.3 (일관된 감성 분석)
+- System: Financial analyst persona
 
 #### 3.5 Risk Manager 고도화
 - [ ] **Guardrails AI 통합**
@@ -460,11 +479,11 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 - ✅ `backend/agents/debate.py` - Judge & Consensus (350+ lines)
 - ✅ `backend/agents/state.py` - State 업데이트 (Phase 3 필드 + 타입 수정)
 - ✅ `backend/agents/graph.py` - Phase 3 구조로 재작성 (debate loop)
-- ✅ `backend/agents/nodes.py` - risk_manager_node 업데이트 + Technical Analyst 통합
+- ✅ `backend/agents/nodes.py` - risk_manager_node 업데이트 + Technical/Sentiment Analyst 통합
 - ✅ `backend/agents/technical_analyst.py` - `ta` 라이브러리 통합 (600+ lines)
+- ✅ `backend/agents/sentiment_analyst.py` - Gemini 2.5 Pro Financial CoT (370+ lines)
 - ✅ `.env` - GOOGLE_API_KEY 추가
 - ✅ `requirements.txt` - langchain-google-genai, ta 추가
-- ⏳ `backend/agents/sentiment_analyst.py` - FinGPT 통합
 - ⏳ `backend/tests/test_researchers.py` - Researcher 테스트
 - ⏳ `backend/tests/test_debate.py` - Debate 테스트
 
