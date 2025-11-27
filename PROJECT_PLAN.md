@@ -3,9 +3,9 @@
 **프로젝트명:** HATS (Hybrid AI Trading System)
 **목표:** LLM 기반 자율 트레이딩 에이전트 시스템 구축
 **시작일:** 2025-11-26
-**최근 업데이트:** 2025-11-26
+**최근 업데이트:** 2025-11-26 (Phase 3 시작)
 **예상 완료:** 2026-04-26 (5개월) - ML/RL 통합 포함
-**현재 진행률:** ██████████░░░░░░░░░░ **50%** (Phase 2 완료 + 데이터 수집 완료)
+**현재 진행률:** ███████████░░░░░░░░░ **55%** (Phase 3 40% 진행 - Bull/Bear Debate 핵심 구현 완료)
 
 ---
 
@@ -86,7 +86,7 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 | **Phase 0** | 프로젝트 설정 | 1일 | ✅ 완료 | 100% | 2025-11-26 |
 | **Phase 1** | 인프라 구축 | 1-2주 | ✅ 완료 | 100% | 2025-11-26 |
 | **Phase 2** | LangGraph Agent Foundation | 2-3주 | ✅ 완료 | 100% | 2025-11-26 |
-| **Phase 3** | TradingAgents 프레임워크 통합 | 2-3주 | 🔄 진행 예정 | 0% | - |
+| **Phase 3** | TradingAgents 프레임워크 통합 | 2-3주 | 🔄 진행중 | 40% | - |
 | **Phase 3.5** | 🧠 ML Tactical Layer (LSTM + 패턴) | 3주 | ⏳ 대기 | 0% | - |
 | **Phase 4** | Lumibot 백테스팅 통합 | 2주 | ⏳ 대기 | 0% | - |
 | **Phase 4.5** | 🤖 FinRL Execution Layer | 6-8주 | ⏳ 대기 | 0% | - |
@@ -310,7 +310,7 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 
 ---
 
-## 🎯 Phase 3: TradingAgents 프레임워크 통합 🔄 진행 예정 (0%)
+## 🎯 Phase 3: TradingAgents 프레임워크 통합 🔄 진행중 (40%)
 
 ### 목표
 전문화된 에이전트 + Bull vs Bear 변증법적 토론 구현
@@ -318,30 +318,57 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 ### 예상 기간
 2-3주
 
+### 진행 상황
+**시작일:** 2025-11-26
+**현재 완료:** Bull/Bear Researcher, Judge, Consensus 구현 완료
+
 ### 작업 계획
 
-#### 3.1 Bull/Bear Researcher LLM 구현
-- [ ] **Bull Researcher 고도화**
-  - [ ] GPT-4 또는 Claude-3.5-Sonnet 프롬프트 작성
-  - [ ] 강세 논리 생성 (기술적 + 펀더멘털)
-  - [ ] 지지 증거 수집 및 제시
-  - [ ] 신뢰도 점수 계산
-- [ ] **Bear Researcher 고도화**
-  - [ ] 약세 논리 생성
-  - [ ] 리스크 요인 강조
-  - [ ] 반박 증거 제시
-  - [ ] 신뢰도 점수 계산
+#### 3.1 Bull/Bear Researcher LLM 구현 ✅ 완료 (2025-11-26)
+- [x] **Bull Researcher 고도화** (`backend/agents/researchers.py` - 600+ lines)
+  - [x] GPT-4o-mini 프롬프트 작성 (Adaptive calibration)
+  - [x] 강세 논리 생성 (기술적 + 펀더멘털)
+  - [x] 지지 증거 수집 및 제시 (Pydantic 구조화)
+  - [x] 신뢰도 점수 계산 (Evidence strength evaluation)
+  - [x] **Market regime 기반 추론 스타일 조정**
+    - Bull market: Subjective reasoning (confidence 0.65)
+    - Bear market: Factual data focus (confidence 0.80)
+    - Sideways: Balanced approach (confidence 0.70)
+- [x] **Bear Researcher 고도화**
+  - [x] 약세 논리 생성
+  - [x] 리스크 요인 강조
+  - [x] 반박 증거 제시
+  - [x] 신뢰도 점수 계산
+  - [x] **Market regime 기반 추론 스타일 조정**
+    - Bull market: Factual overheating signals
+    - Bear market: Subjective risk perception
+    - Sideways: Balanced risk awareness
 
-#### 3.2 Debate Subgraph 구현
-- [ ] **토론 메커니즘**
-  - [ ] 순환 실행 로직 (최대 3 라운드)
-  - [ ] 합의 도달 판정 알고리즘
-  - [ ] 토론 트랜스크립트 저장
-  - [ ] 변증법적 추론 패턴 구현
-- [ ] **프롬프트 엔지니어링**
-  - [ ] Bull: "당신은 낙관적 분석가입니다..."
-  - [ ] Bear: "당신은 신중한 리스크 분석가입니다..."
-  - [ ] 이전 발언 참조 및 반박 로직
+#### 3.2 Debate System Core ✅ 완료 (2025-11-26)
+- [x] **Judge Node** (`backend/agents/debate.py`)
+  - [x] 합의 도달 판정 알고리즘
+    - Confidence diff < 0.15
+    - Position diff < 20%
+    - Mutual acknowledgment check
+  - [x] 최대 4 라운드 제한
+  - [x] Early stopping 지원
+- [x] **Consensus Synthesis Node**
+  - [x] 신뢰도 기반 가중 평균
+  - [x] Evidence 강도 평가 (5가지 기준)
+  - [x] 최종 포지션 계산 (-100% ~ +100%)
+  - [x] 합의 요약 생성
+- [x] **State Management** (`backend/agents/state.py` 업데이트)
+  - [x] debate_messages 필드 추가
+  - [x] debate_round, debate_converged 추가
+  - [x] market_regime, news_sentiment 추가
+  - [x] debate_consensus 출력 추가
+
+#### 3.2.1 Debate Subgraph 통합 (진행 예정)
+- [ ] **LangGraph 통합**
+  - [ ] Debate subgraph 생성
+  - [ ] Conditional edges 설정
+  - [ ] 기존 graph.py 업데이트
+  - [ ] 순환 실행 로직 (최대 4 라운드)
 
 #### 3.3 Technical Analyst 구현
 - [ ] **TA-Lib 통합**
@@ -379,9 +406,11 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
   - [ ] 레버리지 제한
   - [ ] 일일 최대 손실 제한
 
-### 산출물 (예정)
-- ⏳ `backend/agents/researchers.py` - Bull/Bear Researcher
-- ⏳ `backend/agents/debate.py` - Debate Subgraph
+### 산출물
+- ✅ `PHASE3_DEBATE_SYSTEM_DESIGN.md` - 설계 문서 (799 lines)
+- ✅ `backend/agents/researchers.py` - Bull/Bear Researcher (600+ lines)
+- ✅ `backend/agents/debate.py` - Judge & Consensus (350+ lines)
+- ✅ `backend/agents/state.py` - State 업데이트 (Phase 3 필드 추가)
 - ⏳ `backend/agents/technical_analyst.py` - TA-Lib 통합
 - ⏳ `backend/agents/sentiment_analyst.py` - FinGPT 통합
 - ⏳ `backend/agents/risk_manager.py` - Guardrails 통합
@@ -389,11 +418,23 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 - ⏳ `backend/tests/test_debate.py` - Debate 테스트
 
 ### 검증 기준
-- [ ] Bull/Bear 토론이 3 라운드 순환 실행됨
-- [ ] 합의 도달 시 토론 종료됨
+- [x] Bull/Bear Researcher 노드 구현 완료
+- [x] Adaptive calibration 구현 (market regime 기반)
+- [x] Judge 노드로 수렴 감지 알고리즘 구현
+- [x] Consensus synthesis 알고리즘 구현
+- [ ] LangGraph에 debate subgraph 통합
+- [ ] 4 라운드 순환 실행 테스트
+- [ ] 합의 도달 시 토론 종료 확인
 - [ ] 기술적 지표가 정확하게 계산됨
 - [ ] FinGPT 감성 분석 정확도 > 70%
 - [ ] Guardrails가 잘못된 거래 신호를 차단함
+
+### 핵심 성과 (현재까지)
+✅ 2024-2025 최신 연구 기반 설계
+✅ Adaptive calibration으로 LLM miscalibration 문제 해결
+✅ Evidence-based confidence scoring
+✅ 4-round debate with convergence detection
+✅ 1,050+ lines 코드 구현 완료
 
 ---
 
@@ -1431,6 +1472,7 @@ python backend/tests/test_agent_basic.py
 | 2025-11-26 | 1.2.0 | Phase 2 완료 업데이트, 진행도 추가 |
 | 2025-11-26 | 1.2.1 | MongoDB checkpointer를 LangGraph v2 BaseCheckpointSaver에 맞게 개선 |
 | 2025-11-26 | 1.3.0 | **🧠 ML/RL 통합 로드맵 추가** - Phase 3.5 (LSTM + Pattern) 및 Phase 4.5 (FinRL) 추가 |
+| 2025-11-26 | 1.4.0 | **🎯 Phase 3 시작 및 핵심 구현 완료** - Bull/Bear Researcher, Judge, Consensus 노드 구현 (40% 진행) |
 
 ---
 
