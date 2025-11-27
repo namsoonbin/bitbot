@@ -1,0 +1,33 @@
+# Core LangChain
+langchain>=0.3.0
+langgraph>=0.2.0
+langsmith>=0.2.0
+
+# LLM Providers
+langchain-openai>=0.2.0
+langchain-anthropic>=0.2.0
+langchain-google-genai>=2.0.0  # Gemini API (Option 1: LangChain wrapper)
+
+# Database
+psycopg2-binary>=2.9.9
+pymongo>=4.8.0
+redis>=5.0.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Crypto Exchange
+ccxt>=4.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+loguru>=0.7.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
+# Technical Analysis (for Phase 3.3)
+# TA-Lib>=0.4.28  # Uncomment when needed

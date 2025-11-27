@@ -383,6 +383,30 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
   - [x] 그래프 컴파일 성공 (9개 노드)
   - [x] Debate loop 구조 검증
 
+#### 3.2.2 Gemini LLM 통합 ✅ 완료 (2025-11-27)
+- [x] **옵션 1: LangChain 래퍼 방식** (현재 구현)
+  - [x] `.env`에 GOOGLE_API_KEY 추가
+  - [x] `requirements.txt`에 langchain-google-genai 추가
+  - [x] `get_llm()` 함수에 Gemini 지원 추가
+  - [x] Gemini 2.5 Flash를 기본 모델로 설정
+  - [x] API 호출 테스트 완료
+  - [x] 전체 그래프 컴파일 검증
+- [ ] **옵션 2: 공식 SDK 마이그레이션** (Phase 4 이후 계획)
+  - [ ] `google-genai` 패키지로 전환
+  - [ ] LangChain 의존성 제거
+  - [ ] 프롬프트 템플릿 재구성
+  - [ ] 출력 파서 직접 구현
+  - [ ] 성능 최적화 및 벤치마크
+
+**선택 이유:**
+- 옵션 1: 코드 변경 최소화 (10분 작업), 기존 LangChain 기능 유지
+- 옵션 2: 최신 기능 접근, 성능 최적화 (2-3일 작업, 나중에 진행)
+
+**현재 모델:**
+- **Gemini 2.5 Flash** (균형잡힌 모델, 1M 토큰 컨텍스트)
+- Temperature: 0.7
+- convert_system_message_to_human: True (Gemini requirement)
+
 #### 3.3 Technical Analyst 구현
 - [ ] **TA-Lib 통합**
   - [ ] RSI (Relative Strength Index)
@@ -421,11 +445,13 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 
 ### 산출물
 - ✅ `PHASE3_DEBATE_SYSTEM_DESIGN.md` - 설계 문서 (799 lines)
-- ✅ `backend/agents/researchers.py` - Bull/Bear Researcher (600+ lines)
+- ✅ `backend/agents/researchers.py` - Bull/Bear Researcher (600+ lines) + Gemini 통합
 - ✅ `backend/agents/debate.py` - Judge & Consensus (350+ lines)
 - ✅ `backend/agents/state.py` - State 업데이트 (Phase 3 필드 + 타입 수정)
 - ✅ `backend/agents/graph.py` - Phase 3 구조로 재작성 (debate loop)
 - ✅ `backend/agents/nodes.py` - risk_manager_node 업데이트 (consensus 기반)
+- ✅ `.env` - GOOGLE_API_KEY 추가
+- ✅ `requirements.txt` - langchain-google-genai 추가
 - ⏳ `backend/agents/technical_analyst.py` - TA-Lib 통합
 - ⏳ `backend/agents/sentiment_analyst.py` - FinGPT 통합
 - ⏳ `backend/tests/test_researchers.py` - Researcher 테스트
@@ -452,6 +478,8 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 ✅ 4-round debate with convergence detection
 ✅ LangGraph debate loop 통합 완료 (순환 구조)
 ✅ Consensus-based risk management (Kelly-inspired sizing)
+✅ **Gemini 2.5 Flash 통합** (1M 토큰 컨텍스트, LangChain 래퍼)
+✅ Multi-LLM 지원 (OpenAI, Anthropic, Google Gemini)
 ✅ 1,400+ lines 코드 구현 완료 (researchers + debate + graph + nodes)
 ✅ 전체 시스템 컴파일 성공 (9개 노드)
 

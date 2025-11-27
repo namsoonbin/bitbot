@@ -11,6 +11,7 @@ References:
 from typing import Dict, Any, List
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
@@ -49,22 +50,45 @@ def detect_market_regime(state: AgentState) -> str:
     Returns:
         "bull_market", "bear_market", or "sideways"
     """
-    market_data = state.get('market_data', {})
-    technical_indicators = state.get('technical_indicators', {})
-    news_sentiment = state.get('news_sentiment', {})
+    market_data = state.get('market_data', {}) or {}
+    technical_indicators = state.get('technical_indicators', {}) or {}
+    news_sentiment = state.get('news_sentiment', {}) or {}
+    history = state.get('historical_prices') or []
+
+    def percent_change_from_history(prices: list) -> float:
+        """Fallback percent change using earliest vs latest close."""
+        if not prices or len(prices) < 2:
+            return 0.0
+        try:
+            latest = prices[0].get('close')
+            oldest = prices[-1].get('close')
+            if latest is None or oldest in (None, 0):
+                return 0.0
+            return ((latest - oldest) / oldest) * 100
+        except Exception:
+            return 0.0
 
     # 가격 변화
-    price_change_7d = market_data.get('price_change_7d', 0)
-    price_change_30d = market_data.get('price_change_30d', 0)
+    price_change_7d = market_data.get('price_change_7d')
+    price_change_30d = market_data.get('price_change_30d')
+
+    if price_change_7d is None:
+        price_change_7d = percent_change_from_history(history)
+    if price_change_30d is None:
+        # Without 30d history, reuse 7d change as a best-effort indicator
+        price_change_30d = price_change_7d
 
     # 기술적 지표
-    rsi = technical_indicators.get('rsi', 50)
-    current_price = market_data.get('current_price', 0)
-    ema_20 = technical_indicators.get('ema_20', current_price)
-    ema_50 = technical_indicators.get('ema_50', current_price)
+    rsi = technical_indicators.get('rsi')
+    if rsi is None:
+        rsi = 50
+
+    current_price = market_data.get('current_price', 0) or 0
+    ema_20 = technical_indicators.get('ema_20') or current_price
+    ema_50 = technical_indicators.get('ema_50') or current_price
 
     # 뉴스 감성
-    avg_sentiment = news_sentiment.get('average_score', 0)
+    avg_sentiment = news_sentiment.get('average_score', 0) or 0
 
     # Bull Market 기준
     is_bull = (
@@ -355,8 +379,17 @@ Remember: Respond ONLY with valid JSON following the exact schema provided.
 # LLM Setup
 # ============================================================================
 
-def get_llm(model_name: str = "gpt-4o-mini"):
-    """LLM 인스턴스 생성 (fallback 포함)"""
+def get_llm(model_name: str = "gemini-2.5-flash"):
+    """
+    LLM 인스턴스 생성 (fallback 포함)
+
+    Supported models:
+    - OpenAI: gpt-4o-mini, gpt-4o, gpt-4
+    - Anthropic: claude-3-5-sonnet-20241022, claude-3-opus
+    - Google Gemini: gemini-2.5-flash, gemini-2.5-pro, gemini-3-pro
+
+    Default: gemini-2.5-flash (balanced, fast, 1M context)
+    """
     try:
         if "gpt" in model_name.lower():
             api_key = os.getenv("OPENAI_API_KEY")
@@ -375,6 +408,16 @@ def get_llm(model_name: str = "gpt-4o-mini"):
                 model=model_name,
                 temperature=0.7,
                 api_key=api_key
+            )
+        elif "gemini" in model_name.lower():
+            api_key = os.getenv("GOOGLE_API_KEY")
+            if not api_key:
+                raise ValueError("GOOGLE_API_KEY not found")
+            return ChatGoogleGenerativeAI(
+                model=model_name,
+                temperature=0.7,
+                google_api_key=api_key,
+                convert_system_message_to_human=True  # Gemini requirement
             )
         else:
             raise ValueError(f"Unsupported model: {model_name}")
@@ -433,12 +476,68 @@ def get_news_sentiment_label(score: float) -> str:
 
 def get_rsi_interpretation(rsi: float) -> str:
     """RSI 해석"""
+    if rsi is None:
+        return "(Neutral)"
     if rsi > 70:
         return "(Overbought)"
     elif rsi < 30:
         return "(Oversold)"
     else:
         return "(Neutral)"
+
+
+def _execute_researcher(
+    state: AgentState,
+    role: str,
+    market_regime: str,
+    reasoning_style: Dict[str, Any],
+    system_prompt: str,
+    user_prompt: str,
+    fallback_output: ResearcherOutput,
+    round_number: int,
+):
+    """
+    Shared execution path for bull/bear researchers.
+    """
+    llm = get_llm(model_name="gemini-2.5-flash")
+
+    if llm is None:
+        output = fallback_output
+    else:
+        parser = JsonOutputParser(pydantic_object=ResearcherOutput)
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", system_prompt),
+            ("user", user_prompt)
+        ])
+        chain = prompt | llm | parser
+        try:
+            output_dict = chain.invoke({})
+            output = ResearcherOutput(**output_dict)
+        except Exception as e:
+            print(f"{role.capitalize()} Researcher LLM call failed: {e}")
+            output = fallback_output
+
+    debate_msg = DebateMessage(
+        role=role,
+        round=round_number,
+        content=output.model_dump(),
+        timestamp=None
+    )
+
+    debate_messages = state.get('debate_messages', [])
+    debate_messages.append(debate_msg)
+    state['debate_messages'] = debate_messages
+    state['market_regime'] = market_regime
+
+    print(f"{role.capitalize()} Thesis: {output.thesis}")
+    print(f"Confidence: {output.confidence:.2f}")
+    print(f"Position: {output.recommended_position:.1f}%")
+
+    return state
+
+
+def _safe_num(value, default: float = 0.0):
+    return default if value is None else value
 
 
 # ============================================================================
@@ -458,101 +557,62 @@ def bull_researcher_node(state: AgentState) -> AgentState:
     reasoning_style = get_bull_reasoning_style(market_regime)
 
     # 데이터 추출
-    market_data = state.get('market_data', {})
-    technical_indicators = state.get('technical_indicators', {})
-    news_sentiment = state.get('news_sentiment', {})
+    market_data = state.get('market_data', {}) or {}
+    technical_indicators = state.get('technical_indicators', {}) or {}
+    news_sentiment = state.get('news_sentiment', {}) or {}
 
     # 현재 라운드 번호
     round_number = state.get('debate_round', 1)
 
-    # LLM 생성
-    llm = get_llm(model_name="gpt-4o-mini")
-
-    if llm is None:
-        # Fallback: 테스트용 mock 응답
-        mock_output = ResearcherOutput(
-            thesis=f"Bullish outlook based on {market_regime}",
-            evidence=[
-                f"Price up {market_data.get('price_change_7d', 0):.1f}% in 7 days",
-                "Technical indicators showing strength",
-                "Positive market sentiment"
-            ],
-            counter_arguments="Bear concerns are valid but outweighed by positive signals",
-            confidence=0.70,
-            confidence_reasoning="Strong technical setup with positive news flow",
-            recommended_position=50.0
-        )
-    else:
-        # 프롬프트 구성
-        system_prompt = BULL_RESEARCHER_SYSTEM_PROMPT.format(
-            market_regime=market_regime,
-            reasoning_instruction=reasoning_style['reasoning_instruction'],
-            focus_areas="\n".join(f"- {area}" for area in reasoning_style['focus_areas'])
-        )
-
-        user_prompt = BULL_RESEARCHER_USER_PROMPT.format(
-            symbol=market_data.get('symbol', 'BTC/USDT'),
-            current_price=market_data.get('current_price', 0),
-            price_change_24h=market_data.get('price_change_24h', 0),
-            price_change_7d=market_data.get('price_change_7d', 0),
-            price_change_30d=market_data.get('price_change_30d', 0),
-            rsi=technical_indicators.get('rsi', 50),
-            macd_signal=technical_indicators.get('macd_signal', 'neutral'),
-            bb_position=technical_indicators.get('bb_position', 'middle'),
-            volume_status=technical_indicators.get('volume_status', 'normal'),
-            ema_20=technical_indicators.get('ema_20', market_data.get('current_price', 0)),
-            ema_50=technical_indicators.get('ema_50', market_data.get('current_price', 0)),
-            news_sentiment_score=news_sentiment.get('average_score', 0),
-            news_sentiment_label=get_news_sentiment_label(news_sentiment.get('average_score', 0)),
-            news_summary=news_sentiment.get('summary', 'No recent news'),
-            market_regime=market_regime,
-            round_number=round_number,
-            previous_debate=format_previous_debate(state, 'bull')
-        )
-
-        # LLM 호출
-        parser = JsonOutputParser(pydantic_object=ResearcherOutput)
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("user", user_prompt)
-        ])
-
-        chain = prompt | llm | parser
-
-        try:
-            output_dict = chain.invoke({})
-            mock_output = ResearcherOutput(**output_dict)
-        except Exception as e:
-            print(f"Bull Researcher LLM call failed: {e}")
-            # Fallback
-            mock_output = ResearcherOutput(
-                thesis="Bullish based on technical strength",
-                evidence=["Price trending up", "RSI healthy", "Positive sentiment"],
-                counter_arguments="Risks acknowledged but manageable",
-                confidence=0.65,
-                confidence_reasoning="Moderate confidence due to mixed signals",
-                recommended_position=40.0
-            )
-
-    # DebateMessage 생성
-    debate_msg = DebateMessage(
-        role='bull',
-        round=round_number,
-        content=mock_output.dict(),
-        timestamp=None  # Will be set automatically
+    system_prompt = BULL_RESEARCHER_SYSTEM_PROMPT.format(
+        market_regime=market_regime,
+        reasoning_instruction=reasoning_style['reasoning_instruction'],
+        focus_areas="\n".join(f"- {area}" for area in reasoning_style['focus_areas'])
     )
 
-    # State 업데이트
-    debate_messages = state.get('debate_messages', [])
-    debate_messages.append(debate_msg)
-    state['debate_messages'] = debate_messages
-    state['market_regime'] = market_regime
+    user_prompt = BULL_RESEARCHER_USER_PROMPT.format(
+        symbol=market_data.get('symbol', 'BTC/USDT'),
+        current_price=_safe_num(market_data.get('current_price', 0)),
+        price_change_24h=_safe_num(market_data.get('price_change_24h', 0)),
+        price_change_7d=_safe_num(market_data.get('price_change_7d', 0)),
+        price_change_30d=_safe_num(market_data.get('price_change_30d', 0)),
+        rsi=_safe_num(technical_indicators.get('rsi', 50)),
+        macd_signal=technical_indicators.get('macd_signal', 'neutral'),
+        bb_position=technical_indicators.get('bb_position', 'middle'),
+        volume_status=technical_indicators.get('volume_status', 'normal'),
+        ema_20=_safe_num(technical_indicators.get('ema_20', market_data.get('current_price', 0))),
+        ema_50=_safe_num(technical_indicators.get('ema_50', market_data.get('current_price', 0))),
+        news_sentiment_score=news_sentiment.get('average_score', 0) or 0,
+        news_sentiment_label=get_news_sentiment_label(news_sentiment.get('average_score', 0) or 0),
+        news_summary=news_sentiment.get('summary', 'No recent news'),
+        market_regime=market_regime,
+        round_number=round_number,
+        previous_debate=format_previous_debate(state, 'bull')
+    )
 
-    print(f"Bull Thesis: {mock_output.thesis}")
-    print(f"Confidence: {mock_output.confidence:.2f}")
-    print(f"Position: {mock_output.recommended_position:.1f}%")
+    fallback_output = ResearcherOutput(
+        thesis=f"Bullish outlook based on {market_regime}",
+        evidence=[
+            f"Price up {market_data.get('price_change_7d', 0):.1f}% in 7 days",
+            "Technical indicators showing strength",
+            "Positive market sentiment"
+        ],
+        counter_arguments="Bear concerns are valid but outweighed by positive signals",
+        confidence=0.70,
+        confidence_reasoning="Strong technical setup with positive news flow",
+        recommended_position=50.0
+    )
 
-    return state
+    return _execute_researcher(
+        state=state,
+        role='bull',
+        market_regime=market_regime,
+        reasoning_style=reasoning_style,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        fallback_output=fallback_output,
+        round_number=round_number,
+    )
 
 
 def bear_researcher_node(state: AgentState) -> AgentState:
@@ -568,99 +628,61 @@ def bear_researcher_node(state: AgentState) -> AgentState:
     reasoning_style = get_bear_reasoning_style(market_regime)
 
     # 데이터 추출
-    market_data = state.get('market_data', {})
-    technical_indicators = state.get('technical_indicators', {})
-    news_sentiment = state.get('news_sentiment', {})
+    market_data = state.get('market_data', {}) or {}
+    technical_indicators = state.get('technical_indicators', {}) or {}
+    news_sentiment = state.get('news_sentiment', {}) or {}
 
     # 현재 라운드 번호
     round_number = state.get('debate_round', 1)
 
-    # LLM 생성
-    llm = get_llm(model_name="gpt-4o-mini")
+    rsi = technical_indicators.get('rsi', 50)
 
-    if llm is None:
-        # Fallback: 테스트용 mock 응답
-        mock_output = ResearcherOutput(
-            thesis=f"Bearish concerns based on {market_regime}",
-            evidence=[
-                "Downside risks present",
-                "Technical indicators showing weakness",
-                "Negative sentiment factors"
-            ],
-            counter_arguments="Bull points noted but risks outweigh opportunities",
-            confidence=0.65,
-            confidence_reasoning="Clear risk signals require caution",
-            recommended_position=-30.0
-        )
-    else:
-        # 프롬프트 구성
-        rsi = technical_indicators.get('rsi', 50)
-
-        system_prompt = BEAR_RESEARCHER_SYSTEM_PROMPT.format(
-            market_regime=market_regime,
-            reasoning_instruction=reasoning_style['reasoning_instruction'],
-            focus_areas="\n".join(f"- {area}" for area in reasoning_style['focus_areas'])
-        )
-
-        user_prompt = BEAR_RESEARCHER_USER_PROMPT.format(
-            symbol=market_data.get('symbol', 'BTC/USDT'),
-            current_price=market_data.get('current_price', 0),
-            price_change_24h=market_data.get('price_change_24h', 0),
-            price_change_7d=market_data.get('price_change_7d', 0),
-            price_change_30d=market_data.get('price_change_30d', 0),
-            rsi=rsi,
-            rsi_interpretation=get_rsi_interpretation(rsi),
-            macd_signal=technical_indicators.get('macd_signal', 'neutral'),
-            volatility=technical_indicators.get('volatility_30d', 0),
-            support=technical_indicators.get('support_level', market_data.get('current_price', 0) * 0.95),
-            resistance=technical_indicators.get('resistance_level', market_data.get('current_price', 0) * 1.05),
-            negative_signals=technical_indicators.get('negative_signals', 'No major warning signs'),
-            news_sentiment_score=news_sentiment.get('average_score', 0),
-            news_sentiment_label=get_news_sentiment_label(news_sentiment.get('average_score', 0)),
-            market_regime=market_regime,
-            round_number=round_number,
-            previous_debate=format_previous_debate(state, 'bear')
-        )
-
-        # LLM 호출
-        parser = JsonOutputParser(pydantic_object=ResearcherOutput)
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("user", user_prompt)
-        ])
-
-        chain = prompt | llm | parser
-
-        try:
-            output_dict = chain.invoke({})
-            mock_output = ResearcherOutput(**output_dict)
-        except Exception as e:
-            print(f"Bear Researcher LLM call failed: {e}")
-            # Fallback
-            mock_output = ResearcherOutput(
-                thesis="Bearish due to risk factors",
-                evidence=["Downside risks", "Weak technicals", "Negative signals"],
-                counter_arguments="Bull case has merit but insufficient",
-                confidence=0.60,
-                confidence_reasoning="Risk factors warrant caution",
-                recommended_position=-25.0
-            )
-
-    # DebateMessage 생성
-    debate_msg = DebateMessage(
-        role='bear',
-        round=round_number,
-        content=mock_output.dict(),
-        timestamp=None
+    system_prompt = BEAR_RESEARCHER_SYSTEM_PROMPT.format(
+        market_regime=market_regime,
+        reasoning_instruction=reasoning_style['reasoning_instruction'],
+        focus_areas="\n".join(f"- {area}" for area in reasoning_style['focus_areas'])
     )
 
-    # State 업데이트
-    debate_messages = state.get('debate_messages', [])
-    debate_messages.append(debate_msg)
-    state['debate_messages'] = debate_messages
+    user_prompt = BEAR_RESEARCHER_USER_PROMPT.format(
+        symbol=market_data.get('symbol', 'BTC/USDT'),
+        current_price=_safe_num(market_data.get('current_price', 0)),
+        price_change_24h=_safe_num(market_data.get('price_change_24h', 0)),
+        price_change_7d=_safe_num(market_data.get('price_change_7d', 0)),
+        price_change_30d=_safe_num(market_data.get('price_change_30d', 0)),
+        rsi=_safe_num(rsi),
+        rsi_interpretation=get_rsi_interpretation(rsi),
+        macd_signal=technical_indicators.get('macd_signal', 'neutral'),
+        volatility=_safe_num(technical_indicators.get('volatility_30d', 0)),
+        support=_safe_num(technical_indicators.get('support_level', market_data.get('current_price', 0) * 0.95)),
+        resistance=_safe_num(technical_indicators.get('resistance_level', market_data.get('current_price', 0) * 1.05)),
+        negative_signals=technical_indicators.get('negative_signals', 'No major warning signs'),
+        news_sentiment_score=news_sentiment.get('average_score', 0) or 0,
+        news_sentiment_label=get_news_sentiment_label(news_sentiment.get('average_score', 0) or 0),
+        market_regime=market_regime,
+        round_number=round_number,
+        previous_debate=format_previous_debate(state, 'bear')
+    )
 
-    print(f"Bear Thesis: {mock_output.thesis}")
-    print(f"Confidence: {mock_output.confidence:.2f}")
-    print(f"Position: {mock_output.recommended_position:.1f}%")
+    fallback_output = ResearcherOutput(
+        thesis=f"Bearish concerns based on {market_regime}",
+        evidence=[
+            "Downside risks present",
+            "Technical indicators showing weakness",
+            "Negative sentiment factors"
+        ],
+        counter_arguments="Bull points noted but risks outweigh opportunities",
+        confidence=0.65,
+        confidence_reasoning="Clear risk signals require caution",
+        recommended_position=-30.0
+    )
 
-    return state
+    return _execute_researcher(
+        state=state,
+        role='bear',
+        market_regime=market_regime,
+        reasoning_style=reasoning_style,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        fallback_output=fallback_output,
+        round_number=round_number,
+    )
