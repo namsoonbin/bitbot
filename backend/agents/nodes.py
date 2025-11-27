@@ -378,11 +378,11 @@ def risk_manager_node(state: AgentState) -> AgentState:
     """
     Risk Manager Node - Evaluates trade safety
 
-    Responsibilities:
-    - Assess risk/reward ratio
-    - Check position sizing
-    - Validate stop-loss levels
-    - Approve or reject trade
+    Phase 3: Uses consensus output from Bull/Bear debate
+    - Validates consensus position and confidence
+    - Assesses risk/reward ratio
+    - Determines position sizing (Kelly criterion)
+    - Approves or rejects trade
     """
     logger.info("=" * 60)
     logger.info("RISK MANAGER - Evaluating trade safety")
@@ -390,44 +390,116 @@ def risk_manager_node(state: AgentState) -> AgentState:
 
     state['current_node'] = 'risk_manager'
 
-    # Placeholder: Simple approval logic
     from .state import RiskAssessment, ProposedTrade
 
-    # Create a proposed trade (this would normally come from previous node)
-    if not state.get('proposed_trade'):
-        # Determine action based on bull/bear confidence
-        bull_conf = state.get('bull_confidence', 0)
-        bear_conf = state.get('bear_confidence', 0)
+    # Get consensus from debate
+    consensus = state.get('debate_consensus')
 
-        if bull_conf > bear_conf + 0.2:
-            action = 'BUY'
-        elif bear_conf > bull_conf + 0.2:
-            action = 'SELL'
-        else:
-            action = 'HOLD'
-
+    if not consensus:
+        logger.warning("No debate consensus found, defaulting to HOLD")
         state['proposed_trade'] = ProposedTrade(
-            action=action,
-            allocation=0.1,  # 10% of portfolio
-            confidence=max(bull_conf, bear_conf),
-            stop_loss_pct=2.0,
-            take_profit_pct=5.0,
-            reasoning=f"Based on analysis: Bull={bull_conf:.2f}, Bear={bear_conf:.2f}",
+            action='HOLD',
+            allocation=0.0,
+            confidence=0.5,
+            stop_loss_pct=None,
+            take_profit_pct=None,
+            reasoning="No consensus available from debate",
             proposed_at=datetime.now()
         )
+        state['risk_assessment'] = RiskAssessment(
+            approved=False,
+            risk_score=1.0,
+            concerns=["No consensus data"],
+            recommendations=["Wait for clearer signals"],
+            max_position_size=0.0,
+            suggested_stop_loss=None,
+            feedback="Trade rejected: No debate consensus"
+        )
+        return state
 
-    # Risk assessment (placeholder)
-    proposed_trade = state['proposed_trade']
-    approved = proposed_trade['action'] != 'SELL'  # Simple rule: approve BUY/HOLD, reject SELL
+    # Extract consensus data
+    consensus_position = consensus.get('position', 0.0)  # -100 to 100
+    consensus_confidence = consensus.get('confidence', 0.5)  # 0.0 to 1.0
+    bull_weight = consensus.get('bull_weight', 0.5)
+    bear_weight = consensus.get('bear_weight', 0.5)
+
+    logger.info(f"Consensus Position: {consensus_position:.1f}% (Confidence: {consensus_confidence:.2f})")
+    logger.info(f"Bull Weight: {bull_weight:.2f}, Bear Weight: {bear_weight:.2f}")
+
+    # Determine action based on consensus position
+    if consensus_position > 30:
+        action = 'BUY'
+    elif consensus_position < -30:
+        action = 'SELL'
+    else:
+        action = 'HOLD'
+
+    # Position sizing using Kelly-inspired approach
+    # allocation = confidence * abs(position) / 100
+    # Cap at 20% of portfolio for safety
+    raw_allocation = (consensus_confidence * abs(consensus_position)) / 100
+    allocation = min(raw_allocation, 0.20)  # Max 20%
+
+    # Stop-loss and take-profit based on confidence
+    # Higher confidence → wider stops (more conviction)
+    if consensus_confidence > 0.7:
+        stop_loss_pct = 3.0
+        take_profit_pct = 8.0
+    elif consensus_confidence > 0.5:
+        stop_loss_pct = 2.0
+        take_profit_pct = 5.0
+    else:
+        stop_loss_pct = 1.5
+        take_profit_pct = 3.0
+
+    # Create proposed trade
+    state['proposed_trade'] = ProposedTrade(
+        action=action,
+        allocation=allocation,
+        confidence=consensus_confidence,
+        stop_loss_pct=stop_loss_pct if action in ['BUY', 'SELL'] else None,
+        take_profit_pct=take_profit_pct if action in ['BUY', 'SELL'] else None,
+        reasoning=consensus.get('summary', 'Consensus-based decision'),
+        proposed_at=datetime.now()
+    )
+
+    # Risk assessment
+    concerns = []
+    recommendations = []
+
+    # Check confidence threshold
+    if consensus_confidence < 0.6:
+        concerns.append("Low consensus confidence (<0.6)")
+
+    # Check position sizing
+    if allocation > 0.15:
+        concerns.append(f"Large position size ({allocation*100:.1f}%)")
+        recommendations.append("Consider reducing position size")
+
+    # Check market regime
+    market_regime = state.get('market_regime')
+    if market_regime == 'sideways' and action != 'HOLD':
+        concerns.append("Sideways market - trend unclear")
+        recommendations.append("Wait for clearer trend")
+
+    # Approval logic
+    approved = (
+        action != 'SELL' and  # Conservative: reject short positions
+        consensus_confidence >= 0.55 and  # Minimum confidence threshold
+        len(concerns) <= 1  # Max 1 concern
+    )
+
+    # Calculate risk score (0.0 = low risk, 1.0 = high risk)
+    risk_score = max(0.0, min(1.0, (1 - consensus_confidence) + (len(concerns) * 0.2)))
 
     state['risk_assessment'] = RiskAssessment(
         approved=approved,
-        risk_score=0.3,
-        concerns=[] if approved else ["High volatility"],
-        recommendations=["Set stop-loss at 2%"],
-        max_position_size=0.15,
-        suggested_stop_loss=2.0,
-        feedback="Trade approved with risk controls" if approved else "Trade rejected due to high risk"
+        risk_score=risk_score,
+        concerns=concerns,
+        recommendations=recommendations + [f"Stop-loss: {stop_loss_pct}%", f"Take-profit: {take_profit_pct}%"],
+        max_position_size=0.20,
+        suggested_stop_loss=stop_loss_pct,
+        feedback=f"Trade {'APPROVED' if approved else 'REJECTED'}: {consensus.get('summary', 'N/A')}"
     )
 
     add_reasoning_step(
@@ -438,6 +510,9 @@ def risk_manager_node(state: AgentState) -> AgentState:
     )
 
     logger.info(f"Risk assessment: {'APPROVED' if approved else 'REJECTED'}")
+    logger.info(f"Proposed action: {action} ({allocation*100:.1f}% allocation)")
+    logger.info(f"Risk score: {risk_score:.2f}")
+
     return state
 
 

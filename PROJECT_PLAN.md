@@ -3,9 +3,9 @@
 **프로젝트명:** HATS (Hybrid AI Trading System)
 **목표:** LLM 기반 자율 트레이딩 에이전트 시스템 구축
 **시작일:** 2025-11-26
-**최근 업데이트:** 2025-11-26 (Phase 3 시작)
+**최근 업데이트:** 2025-11-27 (Phase 3 LangGraph 통합 완료)
 **예상 완료:** 2026-04-26 (5개월) - ML/RL 통합 포함
-**현재 진행률:** ███████████░░░░░░░░░ **55%** (Phase 3 40% 진행 - Bull/Bear Debate 핵심 구현 완료)
+**현재 진행률:** ███████████░░░░░░░░░ **58%** (Phase 3 60% 진행 - Debate Subgraph 통합 완료)
 
 ---
 
@@ -86,7 +86,7 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 | **Phase 0** | 프로젝트 설정 | 1일 | ✅ 완료 | 100% | 2025-11-26 |
 | **Phase 1** | 인프라 구축 | 1-2주 | ✅ 완료 | 100% | 2025-11-26 |
 | **Phase 2** | LangGraph Agent Foundation | 2-3주 | ✅ 완료 | 100% | 2025-11-26 |
-| **Phase 3** | TradingAgents 프레임워크 통합 | 2-3주 | 🔄 진행중 | 40% | - |
+| **Phase 3** | TradingAgents 프레임워크 통합 | 2-3주 | 🔄 진행중 | 60% | - |
 | **Phase 3.5** | 🧠 ML Tactical Layer (LSTM + 패턴) | 3주 | ⏳ 대기 | 0% | - |
 | **Phase 4** | Lumibot 백테스팅 통합 | 2주 | ⏳ 대기 | 0% | - |
 | **Phase 4.5** | 🤖 FinRL Execution Layer | 6-8주 | ⏳ 대기 | 0% | - |
@@ -310,7 +310,7 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 
 ---
 
-## 🎯 Phase 3: TradingAgents 프레임워크 통합 🔄 진행중 (40%)
+## 🎯 Phase 3: TradingAgents 프레임워크 통합 🔄 진행중 (60%)
 
 ### 목표
 전문화된 에이전트 + Bull vs Bear 변증법적 토론 구현
@@ -320,7 +320,8 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 
 ### 진행 상황
 **시작일:** 2025-11-26
-**현재 완료:** Bull/Bear Researcher, Judge, Consensus 구현 완료
+**최근 업데이트:** 2025-11-27
+**현재 완료:** Bull/Bear Researcher, Judge, Consensus, LangGraph 통합 완료
 
 ### 작업 계획
 
@@ -363,12 +364,24 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
   - [x] market_regime, news_sentiment 추가
   - [x] debate_consensus 출력 추가
 
-#### 3.2.1 Debate Subgraph 통합 (진행 예정)
-- [ ] **LangGraph 통합**
-  - [ ] Debate subgraph 생성
-  - [ ] Conditional edges 설정
-  - [ ] 기존 graph.py 업데이트
-  - [ ] 순환 실행 로직 (최대 4 라운드)
+#### 3.2.1 Debate Subgraph 통합 ✅ 완료 (2025-11-27)
+- [x] **LangGraph 통합** (`backend/agents/graph.py` - Phase 3 구조로 재작성)
+  - [x] Debate loop 구현 (Bull → Bear → Judge → continue/converge)
+  - [x] Conditional edges 설정 (should_continue_debate)
+  - [x] 기존 graph.py Phase 3 구조로 완전 재작성
+  - [x] 순환 실행 로직 (최대 4 라운드)
+  - [x] should_start_debate 함수로 debate 초기화
+  - [x] Judge 수렴 판정 후 Consensus로 이동
+- [x] **Risk Manager 업데이트** (`backend/agents/nodes.py`)
+  - [x] Consensus 기반 trade proposal 생성
+  - [x] Kelly-inspired position sizing
+  - [x] Confidence 기반 stop-loss/take-profit 설정
+  - [x] Market regime 고려한 risk assessment
+- [x] **State 타입 수정** (`backend/agents/state.py`)
+  - [x] Dict[str, any] → Dict[str, Any] (Pydantic warning 해결)
+- [x] **통합 테스트**
+  - [x] 그래프 컴파일 성공 (9개 노드)
+  - [x] Debate loop 구조 검증
 
 #### 3.3 Technical Analyst 구현
 - [ ] **TA-Lib 통합**
@@ -410,10 +423,11 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 - ✅ `PHASE3_DEBATE_SYSTEM_DESIGN.md` - 설계 문서 (799 lines)
 - ✅ `backend/agents/researchers.py` - Bull/Bear Researcher (600+ lines)
 - ✅ `backend/agents/debate.py` - Judge & Consensus (350+ lines)
-- ✅ `backend/agents/state.py` - State 업데이트 (Phase 3 필드 추가)
+- ✅ `backend/agents/state.py` - State 업데이트 (Phase 3 필드 + 타입 수정)
+- ✅ `backend/agents/graph.py` - Phase 3 구조로 재작성 (debate loop)
+- ✅ `backend/agents/nodes.py` - risk_manager_node 업데이트 (consensus 기반)
 - ⏳ `backend/agents/technical_analyst.py` - TA-Lib 통합
 - ⏳ `backend/agents/sentiment_analyst.py` - FinGPT 통합
-- ⏳ `backend/agents/risk_manager.py` - Guardrails 통합
 - ⏳ `backend/tests/test_researchers.py` - Researcher 테스트
 - ⏳ `backend/tests/test_debate.py` - Debate 테스트
 
@@ -422,19 +436,24 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 - [x] Adaptive calibration 구현 (market regime 기반)
 - [x] Judge 노드로 수렴 감지 알고리즘 구현
 - [x] Consensus synthesis 알고리즘 구현
-- [ ] LangGraph에 debate subgraph 통합
-- [ ] 4 라운드 순환 실행 테스트
-- [ ] 합의 도달 시 토론 종료 확인
+- [x] LangGraph에 debate loop 통합 완료
+- [x] Graph 컴파일 성공 (9개 노드 구성)
+- [x] Risk Manager가 consensus 결과 활용
+- [ ] 4 라운드 순환 실행 테스트 (LLM 크레딧 필요)
+- [ ] 합의 도달 시 토론 종료 확인 (LLM 크레딧 필요)
 - [ ] 기술적 지표가 정확하게 계산됨
 - [ ] FinGPT 감성 분석 정확도 > 70%
 - [ ] Guardrails가 잘못된 거래 신호를 차단함
 
 ### 핵심 성과 (현재까지)
-✅ 2024-2025 최신 연구 기반 설계
+✅ 2024-2025 최신 연구 기반 설계 (TradingAgents, MAD)
 ✅ Adaptive calibration으로 LLM miscalibration 문제 해결
-✅ Evidence-based confidence scoring
+✅ Evidence-based confidence scoring (5가지 기준)
 ✅ 4-round debate with convergence detection
-✅ 1,050+ lines 코드 구현 완료
+✅ LangGraph debate loop 통합 완료 (순환 구조)
+✅ Consensus-based risk management (Kelly-inspired sizing)
+✅ 1,400+ lines 코드 구현 완료 (researchers + debate + graph + nodes)
+✅ 전체 시스템 컴파일 성공 (9개 노드)
 
 ---
 

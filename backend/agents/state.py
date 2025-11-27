@@ -3,7 +3,7 @@ AgentState Definition for HATS Trading System
 Defines the state structure that flows through the LangGraph
 """
 
-from typing import TypedDict, List, Dict, Optional, Literal
+from typing import TypedDict, List, Dict, Optional, Literal, Any
 from datetime import datetime
 
 
@@ -57,7 +57,7 @@ class DebateMessage(TypedDict):
     """A message in the Bull vs Bear debate"""
     role: Literal['bull', 'bear']
     round: int  # Debate round number (1-4)
-    content: Dict[str, any]  # ResearcherOutput as dict
+    content: Dict[str, Any]  # ResearcherOutput as dict
     timestamp: Optional[datetime]  # Auto-set if None
 
 
@@ -130,9 +130,9 @@ class AgentState(TypedDict):
     debate_round: int  # Current round (1-4)
     debate_converged: bool  # Whether debate has reached consensus
     convergence_reason: Optional[str]  # Why debate converged/stopped
-    debate_consensus: Optional[Dict[str, any]]  # Final consensus output
+    debate_consensus: Optional[Dict[str, Any]]  # Final consensus output
     market_regime: Optional[Literal['bull_market', 'bear_market', 'sideways']]  # Detected market regime
-    news_sentiment: Optional[Dict[str, any]]  # Aggregated news sentiment data
+    news_sentiment: Optional[Dict[str, Any]]  # Aggregated news sentiment data
 
     # Research outputs
     bull_case: Optional[str]
