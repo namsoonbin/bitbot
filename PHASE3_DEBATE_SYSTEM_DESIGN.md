@@ -757,23 +757,25 @@ With Adaptive Calibration:
 
 ## 🚀 구현 우선순위
 
-### Week 1: Core Debate System
-- [ ] Bull/Bear Researcher 노드 구현
-- [ ] Judge 노드 및 수렴 알고리즘
-- [ ] Consensus synthesis 로직
-- [ ] Debate subgraph 통합
+### Week 1: Core Debate System ✅ 완료 (2025-11-26)
+- [x] Bull/Bear Researcher 노드 구현 (`backend/agents/researchers.py` - 600+ lines)
+- [x] Judge 노드 및 수렴 알고리즘 (`backend/agents/debate.py` - 350+ lines)
+- [x] Consensus synthesis 로직
+- [ ] Debate subgraph 통합 (진행 예정)
 
-### Week 2: Adaptive Calibration
-- [ ] Market regime detection
-- [ ] Adaptive reasoning styles
-- [ ] Evidence strength evaluation
-- [ ] Confidence scoring
+### Week 2: Adaptive Calibration ✅ 완료 (2025-11-26)
+- [x] Market regime detection (구현 완료)
+- [x] Adaptive reasoning styles (시장별 추론 스타일 조정)
+- [x] Evidence strength evaluation (5가지 기준)
+- [x] Confidence scoring (Pydantic 구조화)
 
-### Week 3: Testing & Refinement
+### Week 3: Testing & Refinement (진행 예정)
 - [ ] Unit tests (수렴 알고리즘, confidence 계산)
 - [ ] Integration tests (전체 debate 워크플로)
 - [ ] Performance benchmarking
 - [ ] 문서화 및 예제
+
+**현재 진행률:** Week 1-2 대부분 완료 (~85%), Week 3 준비 중
 
 ---
 

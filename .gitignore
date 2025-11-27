@@ -103,6 +103,12 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
+# Windows problematic files
+nul
+
+# Temporary read directory
+read/
+
 # Keep these files
 !.env.example
 !README.md
