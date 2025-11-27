@@ -503,17 +503,36 @@ consensus:
 - [ ] 더 복잡한 CoT 프롬프트 적용
 - [ ] 동시 실행 최적화
 
-#### 3.5 Risk Manager 고도화
-- [ ] **Guardrails AI 통합**
-  - [ ] TradingSignal Pydantic 모델 정의
-  - [ ] Valid Range validator (allocation, stop_loss)
-  - [ ] Valid JSON validator
-  - [ ] Financial Tone validator
-- [ ] **리스크 계산**
-  - [ ] 포지션 사이징 검증 (최대 10%)
-  - [ ] 손절 범위 검증 (최대 20%)
-  - [ ] 레버리지 제한
-  - [ ] 일일 최대 손실 제한
+#### 3.5 Risk Manager 고도화 ✅ 완료 (2025-11-27)
+- [x] **리스크 검증 시스템** (Pydantic validators 사용, Guardrails AI 대체)
+  - [x] `backend/agents/risk_guardrails.py` 생성 (350+ lines)
+  - [x] RiskLimits 정의 (보수적 한계값)
+  - [x] Validation 함수 구현:
+    - Position size validation (최소 1%, 최대 10%)
+    - Stop-loss validation (최소 0.5%, 최대 20%)
+    - Take-profit validation (최소 1%, 최대 50%)
+    - Confidence validation (최소 55%)
+    - Risk score validation (최대 70%)
+  - [x] assess_trade_risk() 종합 평가 함수
+  - [x] calculate_position_size() Kelly-inspired 계산
+
+- [x] **리스크 한계 (Conservative)**
+  - [x] 최대 포지션: 10% (기존 20% → 강화)
+  - [x] 최대 손절: 20%
+  - [x] 레버리지: 1.0 (현물 거래만)
+  - [x] 일일 손실 한계: 5% (문서화)
+  - [x] 최소 confidence: 55%
+  - [x] 최대 risk score: 70%
+
+- [x] **risk_manager_node 통합**
+  - [x] risk_guardrails import
+  - [x] assess_trade_risk() 사용
+  - [x] validation_errors 처리
+  - [x] 개선된 approval 로직
+
+**선택: Pydantic Validators vs Guardrails AI**
+- ✅ Pydantic 사용: 간단, 효과적, 추가 의존성 없음
+- ❌ Guardrails AI: 복잡, LLM 출력 검증 특화 (향후 고려)
 
 ### 산출물
 - ✅ `PHASE3_DEBATE_SYSTEM_DESIGN.md` - 설계 문서 (799 lines)
@@ -525,6 +544,7 @@ consensus:
 - ✅ `backend/agents/technical_analyst.py` - `ta` 라이브러리 통합 (600+ lines)
 - ✅ `backend/agents/sentiment_analyst.py` - Gemini 2.5 Flash Financial CoT (370+ lines)
 - ✅ `backend/agents/rate_limiter.py` - API Rate Limiting (150+ lines, 무료 플랜 최적화)
+- ✅ `backend/agents/risk_guardrails.py` - Risk Management Guardrails (350+ lines)
 - ✅ `.env` - GOOGLE_API_KEY 추가
 - ✅ `requirements.txt` - langchain-google-genai, ta 추가
 - ⏳ `backend/tests/test_researchers.py` - Researcher 테스트

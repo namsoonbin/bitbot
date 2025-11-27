@@ -32,6 +32,13 @@ from .technical_analyst import calculate_technical_indicators
 # Sentiment Analysis
 from .sentiment_analyst import analyze_news_sentiment
 
+# Risk Management
+from .risk_guardrails import (
+    assess_trade_risk,
+    calculate_position_size,
+    RISK_LIMITS
+)
+
 
 # ============================================
 # Helpers
@@ -501,22 +508,24 @@ def risk_manager_node(state: AgentState) -> AgentState:
     else:
         action = 'HOLD'
 
-    # Position sizing using Kelly-inspired approach
-    # allocation = confidence * abs(position) / 100
-    # Cap at 20% of portfolio for safety
-    raw_allocation = (consensus_confidence * abs(consensus_position)) / 100
-    allocation = min(raw_allocation, 0.20)  # Max 20%
+    # Position sizing using risk guardrails (max 10% now, was 20%)
+    allocation = calculate_position_size(
+        consensus_position=consensus_position,
+        consensus_confidence=consensus_confidence,
+        max_allocation=RISK_LIMITS.MAX_POSITION_SIZE  # 10%
+    )
 
     # Stop-loss and take-profit based on confidence
     # Higher confidence → wider stops (more conviction)
+    # But stay within RISK_LIMITS (max 20% stop-loss)
     if consensus_confidence > 0.7:
-        stop_loss_pct = 3.0
+        stop_loss_pct = min(3.0, RISK_LIMITS.MAX_STOP_LOSS_PCT)
         take_profit_pct = 8.0
     elif consensus_confidence > 0.5:
-        stop_loss_pct = 2.0
+        stop_loss_pct = min(2.0, RISK_LIMITS.MAX_STOP_LOSS_PCT)
         take_profit_pct = 5.0
     else:
-        stop_loss_pct = 1.5
+        stop_loss_pct = min(1.5, RISK_LIMITS.MAX_STOP_LOSS_PCT)
         take_profit_pct = 3.0
 
     # Create proposed trade
@@ -530,43 +539,46 @@ def risk_manager_node(state: AgentState) -> AgentState:
         proposed_at=datetime.now()
     )
 
-    # Risk assessment
-    concerns = []
-    recommendations = []
-
-    # Check confidence threshold
-    if consensus_confidence < 0.6:
-        concerns.append("Low consensus confidence (<0.6)")
-
-    # Check position sizing
-    if allocation > 0.15:
-        concerns.append(f"Large position size ({allocation*100:.1f}%)")
-        recommendations.append("Consider reducing position size")
-
-    # Check market regime
+    # Comprehensive risk assessment using risk_guardrails
     market_regime = state.get('market_regime')
-    if market_regime == 'sideways' and action != 'HOLD':
-        concerns.append("Sideways market - trend unclear")
-        recommendations.append("Wait for clearer trend")
 
-    # Approval logic
-    approved = (
-        action != 'SELL' and  # Conservative: reject short positions
-        consensus_confidence >= 0.55 and  # Minimum confidence threshold
-        len(concerns) <= 1  # Max 1 concern
+    risk_assessment_result = assess_trade_risk(
+        action=action,
+        allocation=allocation,
+        confidence=consensus_confidence,
+        stop_loss_pct=stop_loss_pct,
+        take_profit_pct=take_profit_pct,
+        market_regime=market_regime
     )
 
-    # Calculate risk score (0.0 = low risk, 1.0 = high risk)
-    risk_score = max(0.0, min(1.0, (1 - consensus_confidence) + (len(concerns) * 0.2)))
+    # Extract results
+    approved = risk_assessment_result['approved']
+    risk_score = risk_assessment_result['risk_score']
+    concerns = risk_assessment_result['concerns']
+    recommendations = risk_assessment_result['recommendations']
+    validation_errors = risk_assessment_result['validation_errors']
+
+    # Add stop-loss/take-profit to recommendations
+    if action != 'HOLD':
+        recommendations.append(f"Stop-loss: {stop_loss_pct}%")
+        recommendations.append(f"Take-profit: {take_profit_pct}%")
+
+    # Build feedback message
+    if validation_errors:
+        feedback = f"Trade REJECTED (Validation Errors): {', '.join(validation_errors)}"
+    elif not approved:
+        feedback = f"Trade REJECTED (Risk too high): {', '.join(concerns)}"
+    else:
+        feedback = f"Trade APPROVED: {consensus.get('summary', 'Consensus-based decision')}"
 
     state['risk_assessment'] = RiskAssessment(
         approved=approved,
         risk_score=risk_score,
-        concerns=concerns,
-        recommendations=recommendations + [f"Stop-loss: {stop_loss_pct}%", f"Take-profit: {take_profit_pct}%"],
-        max_position_size=0.20,
+        concerns=concerns + validation_errors,  # Combine concerns and errors
+        recommendations=recommendations,
+        max_position_size=RISK_LIMITS.MAX_POSITION_SIZE,
         suggested_stop_loss=stop_loss_pct,
-        feedback=f"Trade {'APPROVED' if approved else 'REJECTED'}: {consensus.get('summary', 'N/A')}"
+        feedback=feedback
     )
 
     add_reasoning_step(
