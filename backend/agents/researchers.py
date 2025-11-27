@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 import os
 
 from .state import AgentState, DebateMessage
+from .rate_limiter import wait_for_rate_limit
 
 
 # ============================================================================
@@ -389,6 +390,10 @@ def get_llm(model_name: str = "gemini-2.5-flash"):
     - Google Gemini: gemini-2.5-flash, gemini-2.5-pro, gemini-3-pro
 
     Default: gemini-2.5-flash (balanced, fast, 1M context)
+
+    Rate Limiting (Free Tier):
+    - gemini-2.5-flash: 6s delay (10 calls/min, 250/day)
+    - gemini-2.5-pro: 30s delay (2 calls/min, 50/day)
     """
     try:
         if "gpt" in model_name.lower():
@@ -410,6 +415,9 @@ def get_llm(model_name: str = "gemini-2.5-flash"):
                 api_key=api_key
             )
         elif "gemini" in model_name.lower():
+            # Apply rate limiting for Gemini models (free tier)
+            wait_for_rate_limit(model_name)
+
             api_key = os.getenv("GOOGLE_API_KEY")
             if not api_key:
                 raise ValueError("GOOGLE_API_KEY not found")

@@ -457,9 +457,51 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 - 옵션 1: 금융 도메인 특화, API 비용 절감 (나중에 진행)
 
 **현재 모델:**
-- **Gemini 2.5 Pro** (고급 추론, Financial CoT에 최적)
+- **Gemini 2.5 Flash** (무료 플랜 최적화 - Pro에서 변경)
 - Temperature: 0.3 (일관된 감성 분석)
 - System: Financial analyst persona
+
+#### 3.4.1 API Rate Limiting 구현 ✅ 완료 (2025-11-27)
+- [x] **무료 플랜 최적화 전략**
+  - [x] `backend/agents/rate_limiter.py` 생성 (150+ lines)
+  - [x] Gemini API 무료 플랜 제한 준수
+    - **2.5-Flash**: 10 calls/min, 250 calls/day → 6초 지연
+    - **2.5-Pro**: 2 calls/min, 50 calls/day → 30초 지연
+  - [x] 모든 LLM 호출에 자동 rate limiting 적용
+  - [x] 일일 사용량 추적 및 경고
+  - [x] Sentiment Analyst 모델 변경: **2.5-Pro → 2.5-Flash**
+
+- [x] **구현 상세**
+  - [x] RateLimiter 클래스 (싱글톤 패턴)
+  - [x] 모델별 지연 시간 관리
+  - [x] 일일 할당량 추적 (자정 자동 리셋)
+  - [x] researchers.py get_llm()에 적용
+  - [x] sentiment_analyst.py에 적용
+  - [x] 전체 그래프 컴파일 테스트 완료
+
+**무료 플랜 API 사용량 (1회 실행 시):**
+```
+analyst_node:
+  - Sentiment (Flash): 1회
+
+debate_loop (4 라운드):
+  - Bull (Flash): 4회
+  - Bear (Flash): 4회
+  - Judge (Flash): 4회
+
+consensus:
+  - Consensus (Flash): 1회
+
+총 Flash 사용: 14회
+실행 시간: ~84초 (14회 × 6초)
+분당 제한: 10회 → Rate Limiter로 안전하게 처리
+```
+
+**유료 플랜 업그레이드 시:**
+- [ ] Rate limiting 지연 시간 축소 또는 제거
+- [ ] Sentiment Analyst를 2.5-Pro로 복원
+- [ ] 더 복잡한 CoT 프롬프트 적용
+- [ ] 동시 실행 최적화
 
 #### 3.5 Risk Manager 고도화
 - [ ] **Guardrails AI 통합**
@@ -481,7 +523,8 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 - ✅ `backend/agents/graph.py` - Phase 3 구조로 재작성 (debate loop)
 - ✅ `backend/agents/nodes.py` - risk_manager_node 업데이트 + Technical/Sentiment Analyst 통합
 - ✅ `backend/agents/technical_analyst.py` - `ta` 라이브러리 통합 (600+ lines)
-- ✅ `backend/agents/sentiment_analyst.py` - Gemini 2.5 Pro Financial CoT (370+ lines)
+- ✅ `backend/agents/sentiment_analyst.py` - Gemini 2.5 Flash Financial CoT (370+ lines)
+- ✅ `backend/agents/rate_limiter.py` - API Rate Limiting (150+ lines, 무료 플랜 최적화)
 - ✅ `.env` - GOOGLE_API_KEY 추가
 - ✅ `requirements.txt` - langchain-google-genai, ta 추가
 - ⏳ `backend/tests/test_researchers.py` - Researcher 테스트

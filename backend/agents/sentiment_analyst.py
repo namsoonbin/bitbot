@@ -29,6 +29,9 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
+# Rate Limiter
+from .rate_limiter import wait_for_rate_limit
+
 
 # ============================================================================
 # Pydantic Models
@@ -111,16 +114,27 @@ def get_market_impact(score: float) -> str:
 
 def get_sentiment_llm() -> ChatGoogleGenerativeAI:
     """
-    Get Gemini 2.5 Pro LLM for sentiment analysis
+    Get Gemini 2.5 Flash LLM for sentiment analysis
 
     Uses lower temperature for consistent sentiment scoring
+
+    Note: Using 2.5-Flash instead of 2.5-Pro for free tier quota management
+    - Free tier: Flash (250/day, 10/min) vs Pro (50/day, 2/min)
+    - Sentiment analysis works well with Flash model
+    - Upgrade to Pro available when using paid tier
+
+    Rate Limiting:
+    - Automatically applies 6s delay between calls (free tier)
     """
+    # Apply rate limiting (free tier: 10 calls/min, 250/day)
+    wait_for_rate_limit("gemini-2.5-flash")
+
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         raise ValueError("GOOGLE_API_KEY not found in environment")
 
     return ChatGoogleGenerativeAI(
-        model="gemini-2.5-pro",
+        model="gemini-2.5-flash",
         temperature=0.3,  # Lower temperature for consistency
         google_api_key=api_key,
         convert_system_message_to_human=True
