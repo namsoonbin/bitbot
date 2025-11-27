@@ -516,11 +516,12 @@ consensus:
   - [x] assess_trade_risk() 종합 평가 함수
   - [x] calculate_position_size() Kelly-inspired 계산
 
-- [x] **리스크 한계 (Conservative)**
-  - [x] 최대 포지션: 10% (기존 20% → 강화)
-  - [x] 최대 손절: 20%
-  - [x] 레버리지: 1.0 (현물 거래만)
-  - [x] 일일 손실 한계: 5% (문서화)
+- [x] **리스크 한계 (Day Trading - BTC/USDT 5x Leverage)**
+  - [x] 포지션: 최소 5%, 최대 30% (분할매수)
+  - [x] 손절: 최소 3%, 최대 15%
+  - [x] 이익실현: 최소 4%, 최대 45% (분할매도)
+  - [x] 레버리지: 5.0x (BTC/USDT 선물 고정)
+  - [x] 일일 손실 한계: 5%
   - [x] 최소 confidence: 55%
   - [x] 최대 risk score: 70%
 

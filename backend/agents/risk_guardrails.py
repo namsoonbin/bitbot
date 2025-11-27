@@ -22,17 +22,24 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class RiskLimits:
-    """Risk management limits"""
+    """
+    Risk management limits for Day Trading (BTC/USDT 5x leverage)
 
-    # Position Sizing
-    MAX_POSITION_SIZE: float = 0.10  # 10% max of portfolio
-    MIN_POSITION_SIZE: float = 0.01  # 1% min (avoid dust trades)
+    Strategy: Aggressive day trading with position scaling
+    - Split entries (scale in up to 30%)
+    - Split exits (scale out for profits)
+    - 5x leverage on BTC/USDT
+    """
 
-    # Stop-Loss / Take-Profit
-    MAX_STOP_LOSS_PCT: float = 20.0  # Maximum 20% stop-loss
-    MIN_STOP_LOSS_PCT: float = 0.5   # Minimum 0.5% (avoid too tight)
-    MAX_TAKE_PROFIT_PCT: float = 50.0  # Maximum 50% take-profit
-    MIN_TAKE_PROFIT_PCT: float = 1.0   # Minimum 1% (worthwhile)
+    # Position Sizing (Day Trading - Aggressive)
+    MAX_POSITION_SIZE: float = 0.30  # 30% max (split entry)
+    MIN_POSITION_SIZE: float = 0.05  # 5% min (meaningful size)
+
+    # Stop-Loss / Take-Profit (Day Trading)
+    MAX_STOP_LOSS_PCT: float = 15.0  # Maximum 15% stop-loss
+    MIN_STOP_LOSS_PCT: float = 3.0   # Minimum 3% (not too tight for volatility)
+    MAX_TAKE_PROFIT_PCT: float = 45.0  # Maximum 45% take-profit (split exit)
+    MIN_TAKE_PROFIT_PCT: float = 4.0   # Minimum 4% (worthwhile)
 
     # Confidence Thresholds
     MIN_CONFIDENCE_TO_TRADE: float = 0.55  # Minimum 55% confidence
@@ -40,7 +47,7 @@ class RiskLimits:
 
     # Portfolio Limits
     DAILY_LOSS_LIMIT_PCT: float = 5.0  # Max 5% daily loss
-    MAX_LEVERAGE: float = 1.0  # No leverage (spot only)
+    MAX_LEVERAGE: float = 5.0  # 5x leverage (BTC/USDT futures)
 
     # Risk Scoring
     MAX_RISK_SCORE: float = 0.70  # Reject if risk score > 0.70
