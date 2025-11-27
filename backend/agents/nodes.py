@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from loguru import logger
 import os
 from typing import Dict
+from contextlib import contextmanager
 
 # LangChain imports
 from langchain_openai import ChatOpenAI
@@ -24,6 +25,93 @@ ChatAnthropic.model_rebuild()
 # Database imports
 import psycopg2
 from pymongo import MongoClient
+
+# Technical Analysis
+from .technical_analyst import calculate_technical_indicators
+
+
+# ============================================
+# Helpers
+# ============================================
+
+@contextmanager
+def _postgres_conn():
+    conn = None
+    try:
+        conn = get_postgres_connection()
+        yield conn
+    finally:
+        if conn:
+            conn.close()
+
+
+@contextmanager
+def _mongo_db():
+    client = None
+    try:
+        client = MongoClient(
+            f"mongodb://{os.getenv('MONGO_USER', 'hats_user')}:{os.getenv('MONGO_PASSWORD', 'hats_password')}@"
+            f"{os.getenv('MONGO_HOST', 'localhost')}:{os.getenv('MONGO_PORT', '27017')}/"
+        )
+        yield client[os.getenv('MONGO_DB', 'hats_trading')]
+    finally:
+        if client:
+            client.close()
+
+
+def _build_news_summary(news_data: list) -> str:
+    return "\n".join([
+        f"- [{item.get('source', 'Unknown')}] {item.get('title', 'No title')} "
+        f"(Sentiment: {item.get('sentiment', {}).get('score', 0):.2f})"
+        for item in news_data[:5]
+    ])
+
+
+def _build_price_summary(ohlcv_data: list) -> str:
+    if not ohlcv_data:
+        return "No historical data available"
+    latest = ohlcv_data[0]
+    oldest = ohlcv_data[-1]
+    try:
+        week_change_pct = ((latest['close'] - oldest['close']) / oldest['close']) * 100
+        return f"7-day change: {week_change_pct:+.2f}%"
+    except Exception:
+        return "Insufficient historical data"
+
+
+def _run_analysis_llm(llm, state: AgentState, price_summary: str, news_summary: str):
+    analysis_prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are a cryptocurrency market analyst.
+        Analyze the provided market data and news to form an initial assessment.
+        Be concise but insightful. Focus on key signals and trends."""),
+        ("user", """
+Current Market Data:
+- Symbol: {symbol}
+- Current Price: ${current_price:,.2f}
+- 24h Change: {price_change:+.2f}%
+- {price_summary}
+
+Recent News (Avg Sentiment: {sentiment:.2f}):
+{news_summary}
+
+Provide:
+1. Fundamental Analysis: What do the news and market sentiment suggest?
+2. Technical Analysis: What do the price trends indicate?
+3. Key Concerns: Any major risks or uncertainties?
+
+Keep analysis under 300 words.
+        """)
+    ])
+
+    chain = analysis_prompt | llm | StrOutputParser()
+    return chain.invoke({
+        'symbol': state['market_data']['symbol'],
+        'current_price': state['market_data'].get('current_price') or 0.0,
+        'price_change': state['market_data'].get('price_change_pct_24h') or 0.0,
+        'price_summary': price_summary,
+        'sentiment': state.get('sentiment_score', 0.0) or 0.0,
+        'news_summary': news_summary if news_summary else "No recent news available"
+    })
 
 
 # ============================================
@@ -192,6 +280,14 @@ def analyst_node(state: AgentState) -> AgentState:
         state['historical_prices'] = ohlcv_data
         state['recent_news'] = news_data
 
+        # Calculate technical indicators
+        logger.info("Calculating technical indicators...")
+        technical_indicators = calculate_technical_indicators(ohlcv_data)
+        state['technical_indicators'] = technical_indicators
+        logger.info(f"Technical Indicators: RSI={technical_indicators['rsi']:.1f}, "
+                   f"Trend={technical_indicators['trend']}, "
+                   f"Momentum={technical_indicators['momentum']}")
+
         # Calculate sentiment
         if news_data:
             sentiment_scores = [item.get('sentiment', {}).get('score', 0) for item in news_data]
@@ -199,62 +295,16 @@ def analyst_node(state: AgentState) -> AgentState:
             state['sentiment_score'] = avg_sentiment
             logger.info(f"Average news sentiment: {avg_sentiment:.3f}")
 
-        # Prepare context for LLM
-        current_price = state['market_data'].get('current_price') or 0.0
-        price_change = state['market_data'].get('price_change_pct_24h') or 0.0
-
-        # Build news summary
-        news_summary = "\n".join([
-            f"- [{item.get('source', 'Unknown')}] {item.get('title', 'No title')} (Sentiment: {item.get('sentiment', {}).get('score', 0):.2f})"
-            for item in news_data[:5]  # Top 5 news
-        ])
-
-        # Build price summary
-        if ohlcv_data:
-            latest = ohlcv_data[0]
-            oldest = ohlcv_data[-1]
-            week_change_pct = ((latest['close'] - oldest['close']) / oldest['close']) * 100
-            price_summary = f"7-day change: {week_change_pct:+.2f}%"
-        else:
-            price_summary = "No historical data available"
+        # Build summaries
+        news_summary = _build_news_summary(news_data)
+        price_summary = _build_price_summary(ohlcv_data)
 
         # LLM analysis (OpenAI 사용)
         llm = get_llm(model="gpt-4o-mini", temperature=0.7)
 
-        analysis_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a cryptocurrency market analyst.
-            Analyze the provided market data and news to form an initial assessment.
-            Be concise but insightful. Focus on key signals and trends."""),
-            ("user", """
-Current Market Data:
-- Symbol: {symbol}
-- Current Price: ${current_price:,.2f}
-- 24h Change: {price_change:+.2f}%
-- {price_summary}
-
-Recent News (Avg Sentiment: {sentiment:.2f}):
-{news_summary}
-
-Provide:
-1. Fundamental Analysis: What do the news and market sentiment suggest?
-2. Technical Analysis: What do the price trends indicate?
-3. Key Concerns: Any major risks or uncertainties?
-
-Keep analysis under 300 words.
-            """)
-        ])
-
         analysis_result = None
         try:
-            chain = analysis_prompt | llm | StrOutputParser()
-            analysis_result = chain.invoke({
-                'symbol': state['market_data']['symbol'],
-                'current_price': current_price,
-                'price_change': price_change,
-                'price_summary': price_summary,
-                'sentiment': state.get('sentiment_score', 0.0) or 0.0,
-                'news_summary': news_summary if news_summary else "No recent news available"
-            })
+            analysis_result = _run_analysis_llm(llm, state, price_summary, news_summary)
             state['api_calls_count'] += 1
         except Exception as llm_err:
             # Graceful degrade when LLM 호출 실패 (네트워크/쿼터/무결제 등)
@@ -263,9 +313,18 @@ Keep analysis under 300 words.
             state['error'] = str(llm_err)
             state['should_continue'] = False
 
+        # Build technical analysis summary
+        tech_summary = (
+            f"RSI: {technical_indicators['rsi']:.1f} ({technical_indicators['momentum']}), "
+            f"Trend: {technical_indicators['trend']}, "
+            f"MACD: {technical_indicators['macd']['trend']}, "
+            f"Bollinger: {technical_indicators['bollinger_bands']['position']}, "
+            f"EMA20: ${technical_indicators['ema_20']:.0f}"
+        )
+
         # Update state
         state['fundamental_analysis'] = analysis_result
-        state['technical_analysis'] = f"Price Analysis: {price_summary}"
+        state['technical_analysis'] = tech_summary
 
         # Add to reasoning trace
         add_reasoning_step(
@@ -314,7 +373,7 @@ def bull_researcher_node(state: AgentState) -> AgentState:
 
     add_debate_message(
         state,
-        role='Bull',
+        role='bull',
         content=bull_case,
         evidence=["Sentiment analysis", "Price support"]
     )
@@ -358,7 +417,7 @@ def bear_researcher_node(state: AgentState) -> AgentState:
 
     add_debate_message(
         state,
-        role='Bear',
+        role='bear',
         content=bear_case,
         evidence=["Market volatility", "Regulatory risks"]
     )

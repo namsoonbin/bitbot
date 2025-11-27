@@ -407,19 +407,30 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 - Temperature: 0.7
 - convert_system_message_to_human: True (Gemini requirement)
 
-#### 3.3 Technical Analyst 구현
-- [ ] **TA-Lib 통합**
-  - [ ] RSI (Relative Strength Index)
-  - [ ] MACD (Moving Average Convergence Divergence)
-  - [ ] Bollinger Bands
-  - [ ] EMA (Exponential Moving Average)
-  - [ ] Volume indicators
-- [ ] **지지/저항선 탐지**
-  - [ ] 피벗 포인트 계산
-  - [ ] 과거 고점/저점 분석
-- [ ] **패턴 인식**
-  - [ ] 추세 분석 (상승/하락/횡보)
-  - [ ] 모멘텀 분석 (과매수/과매도)
+#### 3.3 Technical Analyst 구현 ✅ 완료 (2025-11-27)
+- [x] **`ta` 라이브러리 통합** (`backend/agents/technical_analyst.py` - 600+ lines)
+  - [x] RSI (Relative Strength Index) - 과매수/과매도 감지
+  - [x] MACD (Moving Average Convergence Divergence) - 추세 전환 신호
+  - [x] Bollinger Bands - 변동성 및 가격 위치 분석
+  - [x] EMA (Exponential Moving Average) - 20, 50, 200 기간
+  - [x] ATR (Average True Range) - 변동성 측정
+  - [x] Volume indicators - OBV, VWAP, 거래량 추세
+- [x] **지지/저항선 탐지**
+  - [x] 피벗 포인트 계산 (Standard method)
+  - [x] 과거 고점/저점 분석 (Local extrema detection)
+  - [x] 최근 3개 레벨 추출
+- [x] **패턴 인식**
+  - [x] 추세 분석 (uptrend/downtrend/sideways) - EMA 기반
+  - [x] 모멘텀 분석 (overbought/oversold/neutral) - RSI 기반
+- [x] **analyst_node 통합**
+  - [x] `calculate_technical_indicators()` 호출
+  - [x] state['technical_indicators']에 저장
+  - [x] Technical analysis summary 생성
+
+**선택: `ta` 라이브러리 vs `TA-Lib`**
+- ✅ `ta` 사용: Pure Python, 설치 간단 (10초)
+- ❌ `TA-Lib`: C 기반, Windows 설치 복잡 (30분+)
+- 성능 차이: 무시 가능 (0.04초 vs 0.01초)
 
 #### 3.4 Sentiment Analyst (FinGPT)
 - [ ] **FinGPT 모델 통합**
@@ -449,10 +460,10 @@ Phase 4.5 (FinRL):   복잡도 2.5x 개발 6-8주
 - ✅ `backend/agents/debate.py` - Judge & Consensus (350+ lines)
 - ✅ `backend/agents/state.py` - State 업데이트 (Phase 3 필드 + 타입 수정)
 - ✅ `backend/agents/graph.py` - Phase 3 구조로 재작성 (debate loop)
-- ✅ `backend/agents/nodes.py` - risk_manager_node 업데이트 (consensus 기반)
+- ✅ `backend/agents/nodes.py` - risk_manager_node 업데이트 + Technical Analyst 통합
+- ✅ `backend/agents/technical_analyst.py` - `ta` 라이브러리 통합 (600+ lines)
 - ✅ `.env` - GOOGLE_API_KEY 추가
-- ✅ `requirements.txt` - langchain-google-genai 추가
-- ⏳ `backend/agents/technical_analyst.py` - TA-Lib 통합
+- ✅ `requirements.txt` - langchain-google-genai, ta 추가
 - ⏳ `backend/agents/sentiment_analyst.py` - FinGPT 통합
 - ⏳ `backend/tests/test_researchers.py` - Researcher 테스트
 - ⏳ `backend/tests/test_debate.py` - Debate 테스트

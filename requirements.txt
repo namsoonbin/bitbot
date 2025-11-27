@@ -17,6 +17,9 @@ redis>=5.0.0
 pandas>=2.0.0
 numpy>=1.24.0
 
+# Technical Analysis
+ta>=0.11.0  # Technical Analysis Library (Pure Python)
+
 # Crypto Exchange
 ccxt>=4.0.0
 
