@@ -55,10 +55,10 @@ class ReasoningStep(TypedDict):
 
 class DebateMessage(TypedDict):
     """A message in the Bull vs Bear debate"""
-    role: Literal['Bull', 'Bear']
-    content: str
-    timestamp: datetime
-    supporting_evidence: List[str]
+    role: Literal['bull', 'bear']
+    round: int  # Debate round number (1-4)
+    content: Dict[str, any]  # ResearcherOutput as dict
+    timestamp: Optional[datetime]  # Auto-set if None
 
 
 class ProposedTrade(TypedDict):
@@ -123,7 +123,16 @@ class AgentState(TypedDict):
 
     # Reasoning process
     reasoning_trace: List[ReasoningStep]
-    debate_transcript: List[DebateMessage]
+    debate_transcript: List[DebateMessage]  # Legacy (kept for compatibility)
+
+    # Phase 3: Bull/Bear Debate System
+    debate_messages: List[DebateMessage]  # New structured debate format
+    debate_round: int  # Current round (1-4)
+    debate_converged: bool  # Whether debate has reached consensus
+    convergence_reason: Optional[str]  # Why debate converged/stopped
+    debate_consensus: Optional[Dict[str, any]]  # Final consensus output
+    market_regime: Optional[Literal['bull_market', 'bear_market', 'sideways']]  # Detected market regime
+    news_sentiment: Optional[Dict[str, any]]  # Aggregated news sentiment data
 
     # Research outputs
     bull_case: Optional[str]
@@ -200,6 +209,15 @@ def create_initial_state(session_id: str, market_data: MarketData) -> AgentState
         # Reasoning process
         reasoning_trace=[],
         debate_transcript=[],
+
+        # Phase 3: Bull/Bear Debate System
+        debate_messages=[],
+        debate_round=1,
+        debate_converged=False,
+        convergence_reason=None,
+        debate_consensus=None,
+        market_regime=None,
+        news_sentiment=None,
 
         # Research outputs
         bull_case=None,
