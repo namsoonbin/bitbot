@@ -341,7 +341,15 @@ def train_model(
     model = LSTMPricePredictor(lstm_config).to(device)
     logger.info(f"Total parameters: {count_parameters(model):,}")
 
-    # Loss and optimizer
+    # Show class distribution (no weighting applied)
+    train_labels = train_dataset.labels
+    class_counts = np.bincount(train_labels)
+    total_samples = len(train_labels)
+
+    logger.info(f"Class distribution: UP={class_counts[0]}, SIDEWAYS={class_counts[1]}, DOWN={class_counts[2]}")
+    logger.info(f"Class percentages: UP={100*class_counts[0]/total_samples:.1f}%, SIDEWAYS={100*class_counts[1]/total_samples:.1f}%, DOWN={100*class_counts[2]/total_samples:.1f}%")
+
+    # Loss and optimizer (no class weighting - let more data handle imbalance naturally)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(
         model.parameters(),

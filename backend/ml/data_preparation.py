@@ -30,12 +30,12 @@ from data.ccxt_collector import CCXTDataCollector
 TIMEFRAMES = {
     '1d': {'days': 730, 'table': 'ohlcv_btcusdt_1d'},    # 2 years daily
     '4h': {'days': 365, 'table': 'ohlcv_btcusdt_4h'},    # 1 year 4-hour
-    '15m': {'days': 90, 'table': 'ohlcv_btcusdt_15m'},   # 3 months 15-min
-    '5m': {'days': 30, 'table': 'ohlcv_btcusdt_5m'}      # 1 month 5-min
+    '15m': {'days': 365, 'table': 'ohlcv_btcusdt_15m'},  # 1 year 15-min (~35,040 candles)
+    '5m': {'days': 90, 'table': 'ohlcv_btcusdt_5m'}      # 3 months 5-min
 }
 
 LABEL_THRESHOLDS = {
-    '15m': {'up': 0.001, 'down': -0.001},   # 0.1% for 15-minute
+    '15m': {'up': 0.0019, 'down': -0.0019},   # 0.19% for 15-minute
     '5m': {'up': 0.0005, 'down': -0.0005},  # 0.05% for 5-minute
 }
 
@@ -516,7 +516,7 @@ def prepare_ml_dataset(
 
     # Step 3: Labeling
     logger.info("Step 3: Creating labels...")
-    df = create_labels(df, timeframe=timeframe, lookahead=1)
+    df = create_labels(df, timeframe=timeframe, lookahead=2)  # 30 minutes (2 x 15m)
 
     # Step 4: Split
     logger.info("Step 4: Splitting dataset...")

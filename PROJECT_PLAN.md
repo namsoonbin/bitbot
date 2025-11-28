@@ -670,51 +670,93 @@ consensus:
 - ✅ `backend/ml/__init__.py` - ML 모듈 초기화
 - ✅ `backend/ml/data_preparation.py` - Multi-timeframe 데이터 파이프라인 (550 lines)
 
-#### 3.5.2 LSTM 가격 예측 모델 ✅ 완료 (2025-11-28)
+#### 3.5.2 LSTM 가격 예측 모델 ⚠️ 실험 완료 (2025-11-28)
 - [x] **모델 구현** (`backend/ml/price_predictor.py`)
   - [x] PyTorch LSTM 아키텍처
     - Input: 60 타임스텝 × 34 features (29 technical + 5 OHLCV)
     - Hidden: 128 units × 2 layers
     - Output: 3 classes (UP/DOWN/SIDEWAYS)
-    - Total parameters: 216,963
+    - Total parameters: 216,451
   - [x] Dropout 0.2 (과적합 방지)
   - [x] Softmax 출력 (확률)
 
 - [x] **학습 파이프라인** (`backend/ml/train_lstm.py`)
   - [x] Adam optimizer (lr=0.001, weight_decay=1e-5)
   - [x] CrossEntropyLoss
-  - [x] Early stopping (patience=10) - Triggered at epoch 11
-  - [x] 학습 시간: ~10분 (CPU, 11 epochs)
+  - [x] Early stopping (patience=10)
+  - [x] 학습 시간: ~10-17분 (CPU, 19 epochs)
 
-- [x] **모델 평가**
-  - [x] 테스트 정확도: **40.96%** (Baseline)
-  - [x] 클래스별 정확도:
-    - UP: 29.87%
-    - SIDEWAYS: 53.32% (최고)
-    - DOWN: 39.13%
-  - [x] 최고 검증 정확도: 40.55% (epoch 0)
+- [x] **실험 결과** - 3가지 라벨링 전략 테스트
+
+**실험 1: Baseline (0.1% threshold, 15분 lookahead)**
+```
+데이터: 1년 (35,040 candles)
+Train/Val/Test: 24,388 / 5,228 / 5,228
+
+레이블 분포 (Train):
+- UP: 27.2%, DOWN: 26.7%, SIDEWAYS: 46.1%
+
+결과:
+- Test Accuracy: 43.46%
+- UP: 27.49%, SIDEWAYS: 77.13%, DOWN: 13.06%
+- 문제: SIDEWAYS 편향
+```
+
+**실험 2: 0.5% threshold (15분 lookahead) - ❌ 실패**
+```
+레이블 분포:
+- UP: 2.2%, DOWN: 2.1%, SIDEWAYS: 95.7% (재앙)
+
+결과:
+- Validation: UP 0.00%, SIDEWAYS 100.00%, DOWN 0.00%
+- 원인: Threshold 너무 커서 대부분 SIDEWAYS로 분류됨
+- 조기 중단
+```
+
+**실험 3: 0.19% threshold, 30분 lookahead - ❌ 실패**
+```
+레이블 분포 (Train):
+- UP: 20.7%, DOWN: 20.2%, SIDEWAYS: 59.1%
+
+결과 (Best Model - Epoch 8):
+- Test Accuracy: 52.17% (↑ 8.71%p vs Baseline)
+- UP: 17.20% (↓), SIDEWAYS: 90.31% (↑↑), DOWN: 7.07% (↓)
+- Early stopping: Epoch 19
+
+문제점:
+- 전체 정확도는 상승했으나 SIDEWAYS만 예측 (90.31%)
+- UP/DOWN 예측 능력 심각하게 하락
+- 실제 거래 사용 불가능
+```
 
 **산출물:**
-- ✅ `backend/ml/price_predictor.py` - LSTM 모델 (500 lines)
-- ✅ `backend/ml/train_lstm.py` - 학습 파이프라인 (500 lines)
+- ✅ `backend/ml/price_predictor.py` - LSTM 모델 (386 lines)
+- ✅ `backend/ml/train_lstm.py` - 학습 파이프라인 (495 lines)
+- ✅ `backend/ml/data_preparation.py` - 데이터 파이프라인 (550 lines)
 - ✅ `backend/ml/models/best_model_15m.pt` - 학습된 모델
-- ✅ `backend/ml/data/prepared/` - 학습 데이터셋 (8,640 candles)
+- ✅ `backend/ml/data/prepared/` - 학습 데이터셋 (35,040 candles)
+- ✅ 실험 로그: `exp1_threshold_0.5.log`, `exp2_threshold_0.19_lookahead2.log`
 
-**학습 결과 분석:**
+**문제 분석:**
 ```
-데이터셋:
-- Train: 5,908 샘플 (70%)
-- Val: 1,266 샘플 (15%)
-- Test: 1,266 샘플 (15%)
+근본 원인:
+1. 라벨링 전략의 한계
+   - 암호화폐는 실제로 60%가 횡보일 수 있음
+   - 0.19%, 30분도 여전히 시장 노이즈 수준
 
-레이블 분포:
-- UP: 25.4%
-- DOWN: 25.5%
-- SIDEWAYS: 49.1%
+2. LSTM 아키텍처 부적합
+   - 단순 LSTM이 암호화폐 패턴 학습 실패
+   - UP/DOWN 클래스를 거의 학습하지 못함
 
-성능:
-- 테스트 정확도: 40.96% (3-class baseline: 33%)
-- 개선 여지: 하이퍼파라미터 튜닝, 더 많은 데이터, 클래스 밸런싱
+3. Class Imbalance 해결 실패
+   - Class weighting 시도: 오히려 성능 악화
+   - More data 수집: SIDEWAYS 편향 더 심화
+   - 근본적 접근법 재검토 필요
+
+향후 방향:
+- Option A: 이진 분류 (UP/DOWN만, SIDEWAYS 제거)
+- Option B: 회귀 모델로 전환 (정확한 가격 예측)
+- Option C: Phase 4 진행 (백테스팅 먼저, ML은 보조 지표로)
 ```
 
 #### 3.5.3 캔들 패턴 인식 모델
