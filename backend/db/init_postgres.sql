@@ -23,6 +23,104 @@ SELECT create_hypertable('ohlcv_btcusdt_1h', 'timestamp', if_not_exists => TRUE)
 -- Create index for faster queries
 CREATE INDEX IF NOT EXISTS idx_ohlcv_timestamp_desc ON ohlcv_btcusdt_1h (timestamp DESC);
 
+-- Create OHLCV table for BTC/USDT perpetual swap (Binance futures) 1-hour candles
+CREATE TABLE IF NOT EXISTS ohlcv_btcusdt_swap_1h (
+    timestamp TIMESTAMPTZ NOT NULL,
+    open DECIMAL(20, 8) NOT NULL,
+    high DECIMAL(20, 8) NOT NULL,
+    low DECIMAL(20, 8) NOT NULL,
+    close DECIMAL(20, 8) NOT NULL,
+    volume DECIMAL(20, 8) NOT NULL,
+    PRIMARY KEY (timestamp)
+);
+
+SELECT create_hypertable('ohlcv_btcusdt_swap_1h', 'timestamp', if_not_exists => TRUE);
+CREATE INDEX IF NOT EXISTS idx_ohlcv_swap_timestamp_desc ON ohlcv_btcusdt_swap_1h (timestamp DESC);
+
+-- Create OHLCV table for BTC/USDT perpetual swap (Binance futures) 1-minute candles
+CREATE TABLE IF NOT EXISTS ohlcv_btcusdt_swap_1m (
+    timestamp TIMESTAMPTZ NOT NULL,
+    open DECIMAL(20, 8) NOT NULL,
+    high DECIMAL(20, 8) NOT NULL,
+    low DECIMAL(20, 8) NOT NULL,
+    close DECIMAL(20, 8) NOT NULL,
+    volume DECIMAL(20, 8) NOT NULL,
+    PRIMARY KEY (timestamp)
+);
+
+SELECT create_hypertable('ohlcv_btcusdt_swap_1m', 'timestamp', if_not_exists => TRUE);
+CREATE INDEX IF NOT EXISTS idx_ohlcv_swap_1m_timestamp_desc ON ohlcv_btcusdt_swap_1m (timestamp DESC);
+
+-- Create OHLCV table for BTC/USDT perpetual swap (Binance futures) 5-minute candles
+CREATE TABLE IF NOT EXISTS ohlcv_btcusdt_swap_5m (
+    timestamp TIMESTAMPTZ NOT NULL,
+    open DECIMAL(20, 8) NOT NULL,
+    high DECIMAL(20, 8) NOT NULL,
+    low DECIMAL(20, 8) NOT NULL,
+    close DECIMAL(20, 8) NOT NULL,
+    volume DECIMAL(20, 8) NOT NULL,
+    PRIMARY KEY (timestamp)
+);
+
+SELECT create_hypertable('ohlcv_btcusdt_swap_5m', 'timestamp', if_not_exists => TRUE);
+CREATE INDEX IF NOT EXISTS idx_ohlcv_swap_5m_timestamp_desc ON ohlcv_btcusdt_swap_5m (timestamp DESC);
+
+-- Create OHLCV table for BTC/USDT 1-day candles (ML training)
+CREATE TABLE IF NOT EXISTS ohlcv_btcusdt_1d (
+    timestamp TIMESTAMPTZ NOT NULL,
+    open DECIMAL(20, 8) NOT NULL,
+    high DECIMAL(20, 8) NOT NULL,
+    low DECIMAL(20, 8) NOT NULL,
+    close DECIMAL(20, 8) NOT NULL,
+    volume DECIMAL(20, 8) NOT NULL,
+    PRIMARY KEY (timestamp)
+);
+
+SELECT create_hypertable('ohlcv_btcusdt_1d', 'timestamp', if_not_exists => TRUE);
+CREATE INDEX IF NOT EXISTS idx_ohlcv_1d_timestamp_desc ON ohlcv_btcusdt_1d (timestamp DESC);
+
+-- Create OHLCV table for BTC/USDT 4-hour candles (ML training)
+CREATE TABLE IF NOT EXISTS ohlcv_btcusdt_4h (
+    timestamp TIMESTAMPTZ NOT NULL,
+    open DECIMAL(20, 8) NOT NULL,
+    high DECIMAL(20, 8) NOT NULL,
+    low DECIMAL(20, 8) NOT NULL,
+    close DECIMAL(20, 8) NOT NULL,
+    volume DECIMAL(20, 8) NOT NULL,
+    PRIMARY KEY (timestamp)
+);
+
+SELECT create_hypertable('ohlcv_btcusdt_4h', 'timestamp', if_not_exists => TRUE);
+CREATE INDEX IF NOT EXISTS idx_ohlcv_4h_timestamp_desc ON ohlcv_btcusdt_4h (timestamp DESC);
+
+-- Create OHLCV table for BTC/USDT 15-minute candles (ML training)
+CREATE TABLE IF NOT EXISTS ohlcv_btcusdt_15m (
+    timestamp TIMESTAMPTZ NOT NULL,
+    open DECIMAL(20, 8) NOT NULL,
+    high DECIMAL(20, 8) NOT NULL,
+    low DECIMAL(20, 8) NOT NULL,
+    close DECIMAL(20, 8) NOT NULL,
+    volume DECIMAL(20, 8) NOT NULL,
+    PRIMARY KEY (timestamp)
+);
+
+SELECT create_hypertable('ohlcv_btcusdt_15m', 'timestamp', if_not_exists => TRUE);
+CREATE INDEX IF NOT EXISTS idx_ohlcv_15m_timestamp_desc ON ohlcv_btcusdt_15m (timestamp DESC);
+
+-- Create OHLCV table for BTC/USDT 5-minute candles (ML training)
+CREATE TABLE IF NOT EXISTS ohlcv_btcusdt_5m (
+    timestamp TIMESTAMPTZ NOT NULL,
+    open DECIMAL(20, 8) NOT NULL,
+    high DECIMAL(20, 8) NOT NULL,
+    low DECIMAL(20, 8) NOT NULL,
+    close DECIMAL(20, 8) NOT NULL,
+    volume DECIMAL(20, 8) NOT NULL,
+    PRIMARY KEY (timestamp)
+);
+
+SELECT create_hypertable('ohlcv_btcusdt_5m', 'timestamp', if_not_exists => TRUE);
+CREATE INDEX IF NOT EXISTS idx_ohlcv_5m_timestamp_desc ON ohlcv_btcusdt_5m (timestamp DESC);
+
 -- Create table for executed trades
 CREATE TABLE IF NOT EXISTS trades (
     id SERIAL PRIMARY KEY,

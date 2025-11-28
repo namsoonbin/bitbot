@@ -102,13 +102,21 @@ class MultiTimeframeCollector:
                 end_date = datetime.now()
                 start_date = end_date - timedelta(days=config['days'])
 
-                # Collect data
-                df = self.collector.collect_historical_data(
+                # Collect data (saves to database)
+                self.collector.collect_historical_data(
                     symbol=self.symbol,
                     timeframe=tf,
                     days=config['days'],
                     table_name=config['table']
                 )
+
+                # Query collected data from database
+                query = f"""
+                    SELECT timestamp, open, high, low, close, volume
+                    FROM {config['table']}
+                    ORDER BY timestamp ASC
+                """
+                df = pd.read_sql(query, self.collector.db_conn)
 
                 # Validate data
                 if df is None or len(df) == 0:

@@ -29,7 +29,13 @@ class CCXTDataCollector:
         db_port: int = 5432,
         db_name: str = 'hats_trading',
         db_user: str = 'hats_user',
-        db_password: str = 'hats_password'
+        db_password: str = 'hats_password',
+        *,
+        market_type: str = 'spot',
+        max_retries: int = 3,
+        retry_backoff: float = 1.0,
+        exchange=None,
+        connect_db: bool = True
     ):
         """
         Initialize CCXT collector
@@ -41,27 +47,66 @@ class CCXTDataCollector:
             db_name: Database name
             db_user: Database user
             db_password: Database password
+            market_type: CCXT marketType/defaultType (spot, swap 등)
+            max_retries: fetch 실패 시 재시도 횟수
+            retry_backoff: 재시도 사이 대기 시간(초)
+            exchange: 테스트용 커스텀 익스체인지 인스턴스 주입
         """
         self.exchange_name = exchange_name
-        self.exchange = getattr(ccxt, exchange_name)({
-            'enableRateLimit': True,  # Respect exchange rate limits
-            'options': {
-                'defaultType': 'spot'  # Use spot market
-            }
-        })
+        self.max_retries = max_retries
+        self.retry_backoff = retry_backoff
+        if exchange:
+            self.exchange = exchange
+        else:
+            self.exchange = getattr(ccxt, exchange_name)({
+                'enableRateLimit': True,  # Respect exchange rate limits
+                'options': {
+                    'defaultType': market_type,
+                    'marketType': market_type
+                }
+            })
 
-        # Database connection
-        self.db_conn = psycopg2.connect(
-            host=db_host,
-            port=db_port,
-            dbname=db_name,
-            user=db_user,
-            password=db_password
-        )
-        self.db_cursor = self.db_conn.cursor()
+        # Database connection (optional for testing)
+        self.db_conn = None
+        self.db_cursor = None
+        if connect_db:
+            self.db_conn = psycopg2.connect(
+                host=db_host,
+                port=db_port,
+                dbname=db_name,
+                user=db_user,
+                password=db_password
+            )
+            self.db_cursor = self.db_conn.cursor()
+            logger.info(f"✓ Connected to PostgreSQL database: {db_name}")
 
         logger.info(f"✓ Connected to {exchange_name} exchange")
-        logger.info(f"✓ Connected to PostgreSQL database: {db_name}")
+
+    def _fetch_with_retry(self, func, *args, **kwargs):
+        """
+        Generic retry wrapper for CCXT calls to handle transient network/exchange errors.
+        """
+        from ccxt.base.errors import (
+            ExchangeNotAvailable,
+            NetworkError,
+            RequestTimeout,
+            DDoSProtection,
+        )
+
+        attempts = 0
+        while True:
+            try:
+                return func(*args, **kwargs)
+            except (ExchangeNotAvailable, NetworkError, RequestTimeout, DDoSProtection) as e:
+                attempts += 1
+                if attempts > self.max_retries:
+                    logger.error(f"CCXT call failed after {attempts} attempts: {e}")
+                    raise
+                wait = self.retry_backoff * attempts
+                logger.warning(f"CCXT transient error ({e}), retrying in {wait:.1f}s... [{attempts}/{self.max_retries}]")
+                time.sleep(wait)
+            except Exception:
+                raise
 
     def fetch_ohlcv(
         self,
@@ -91,7 +136,8 @@ class CCXTDataCollector:
             logger.info(f"Fetching {symbol} {timeframe} data...")
 
             # Fetch from exchange
-            ohlcv = self.exchange.fetch_ohlcv(
+            ohlcv = self._fetch_with_retry(
+                self.exchange.fetch_ohlcv,
                 symbol=symbol,
                 timeframe=timeframe,
                 since=since_ms,
