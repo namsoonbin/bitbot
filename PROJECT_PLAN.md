@@ -3,9 +3,9 @@
 **프로젝트명:** HATS (Hybrid AI Trading System)
 **목표:** LLM 기반 자율 트레이딩 에이전트 시스템 구축
 **시작일:** 2025-11-26
-**최근 업데이트:** 2025-11-28 (Phase 3.6 Testing 완료 - 24/24 tests passed)
+**최근 업데이트:** 2025-11-28 (Phase 3.5.1 ML Data Preparation 완료)
 **예상 완료:** 2026-04-26 (5개월) - ML/RL 통합 포함
-**현재 진행률:** ████████████░░░░░░░░ **62%** (Phase 3 완료 - Testing & Validation 완료)
+**현재 진행률:** ████████████░░░░░░░░ **65%** (Phase 3 완료, Phase 3.5.1 ML 데이터 준비 완료)
 
 ---
 
@@ -630,14 +630,26 @@ consensus:
 
 ### 작업 계획
 
-#### 3.5.1 데이터 준비
-- [ ] **15분봉 데이터 수집** (`backend/data/ccxt_collector.py` 확장)
-  - [ ] 1년치 15분봉 수집 (35,040개 캔들)
-  - [ ] 정규화 및 전처리
-  - [ ] Train/Validation/Test 분할 (70%/15%/15%)
-- [ ] **레이블링 로직**
+#### 3.5.1 데이터 준비 ✅ 완료 (2025-11-28)
+- [x] **Multi-timeframe 데이터 수집** (`backend/ml/data_preparation.py` 생성, 550 lines)
+  - [x] MultiTimeframeCollector 클래스 (1d, 4h, 15m, 5m 지원)
+  - [x] CCXT 통합 (retry 로직 포함)
+  - [x] 정규화 및 전처리 (StandardScaler, MinMaxScaler)
+  - [x] Train/Validation/Test 분할 (70%/15%/15%, 시계열 순서 유지)
+
+- [x] **Feature Engineering**
+  - [x] 24개 기술적 지표 추가:
+    - Price features (change, range, body_size, shadows)
+    - Volume features (change, MA, ratio)
+    - Moving Averages (SMA 5/10/20/50, EMA 12/26)
+    - MACD (line, signal, histogram)
+    - RSI (14-period)
+    - Bollinger Bands (upper, middle, lower, position)
+    - ATR (Average True Range, percentage)
+
+- [x] **레이블링 로직 구현**
   ```python
-  # 다음 15분 가격 변화율 기준
+  # 15분봉: ±0.1% threshold, 5분봉: ±0.05%
   if next_close > current_close * 1.001:  # +0.1%
       label = 'UP'
   elif next_close < current_close * 0.999:  # -0.1%
@@ -645,6 +657,18 @@ consensus:
   else:
       label = 'SIDEWAYS'
   ```
+
+- [x] **테스트 결과**
+  ```
+  ✓ 1000 candles 수집 (15분봉, ~10일)
+  ✓ 24개 features 생성 (총 30 columns)
+  ✓ Label 분포: UP 33.4%, DOWN 34.0%, SIDEWAYS 32.6% (균형)
+  ✓ Split: Train=665, Val=142, Test=143
+  ```
+
+**산출물:**
+- ✅ `backend/ml/__init__.py` - ML 모듈 초기화
+- ✅ `backend/ml/data_preparation.py` - Multi-timeframe 데이터 파이프라인 (550 lines)
 
 #### 3.5.2 LSTM 가격 예측 모델
 - [ ] **모델 구현** (`backend/ml/price_predictor.py`)
